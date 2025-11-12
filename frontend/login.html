@@ -1,69 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <title>LiteNVR</title>
-    <meta content="width=device-width, initial-scale=1, maximum-scale=1" name="viewport" />
+    <meta
+      content="width=device-width, initial-scale=1, maximum-scale=1"
+      name="viewport"
+    />
     <link href="assets/layui/css/layui.css" rel="stylesheet" />
     <link href="./assets/logo.svg" rel="icon" type="image/svg" />
     <style>
-        body {
-            background-color: #eeeeee;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
+      body {
+        background-color: #eeeeee;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
     </style>
-</head>
+  </head>
 
-<body>
-    <div class="login-box"
-        style="width: 300px; padding: 28px; background-color: #fafafa; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); border-radius: 12px">
-        <div style="text-align: center; margin: 0 10px 10px 10px">
-            <img src="./assets/logo.svg" alt="Logo" width="40px" />
+  <body>
+    <div
+      class="login-box"
+      style="
+        width: 300px;
+        padding: 28px;
+        background-color: #fafafa;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+      "
+    >
+      <div style="text-align: center; margin: 0 10px 10px 10px">
+        <img src="./assets/logo.svg" alt="Logo" width="40px" />
+      </div>
+      <div
+        style="
+          text-align: center;
+          font-size: 1.5rem;
+          color: #333;
+          margin-bottom: 20px;
+          font-weight: 600;
+        "
+      >
+        StreamUI
+      </div>
+      <form onsubmit="return handleLogin()">
+        <div class="layui-form-item">
+          <input
+            type="password"
+            id="password"
+            required
+            placeholder="输入密码"
+            autocomplete="off"
+            class="layui-input"
+            style="padding-right: 5px"
+          />
         </div>
-        <div style="text-align: center; font-size: 1.5rem; color: #333; margin-bottom: 20px; font-weight: 600;">StreamUI
-        </div>
-        <form onsubmit="return handleLogin()">
-            <div class="layui-form-item">
-                <input type="password" id="password" required placeholder="输入密码" autocomplete="off" class="layui-input"
-                    style="padding-right: 5px;" />
-            </div>
-            <button class="layui-btn layui-btn-fluid" type="submit">登录</button>
-        </form>
+        <button class="layui-btn layui-btn-fluid" type="submit">登录</button>
+      </form>
     </div>
     <script src="assets/layui/layui.js"></script>
     <script>
+      layui.use(["layer", "form"], function () {
+        let layer = layui.layer;
+        let form = layui.form;
+        form.render();
 
-        layui.use(['layer', 'form'], function () {
-            let layer = layui.layer;
-            let form = layui.form;
-            form.render();
+        // 处理登录逻辑
+        window.handleLogin = function () {
+          const password = document.getElementById("password").value;
 
-            // 处理登录逻辑
-            window.handleLogin = function () {
-                const password = document.getElementById('password').value;
-
-                if (password === 'streamui') {
-                    localStorage.setItem('loginTime', new Date().getTime());
-                    window.location.href = './index.html';
-                } else {
-                    layer.msg("❌ 密码错误", {
-                        time: 1500,
-                        offset: 't',
-                        shift: 1
-                    });
-                }
-                return false; // 阻止表单提交
-            }
-
-        });
-
-
+          if (password === "streamui") {
+            localStorage.setItem("loginTime", new Date().getTime());
+            window.location.href = "./index.html";
+          } else {
+            layer.msg("❌ 密码错误", {
+              time: 1500,
+              offset: "t",
+              shift: 1,
+            });
+          }
+          return false; // 阻止表单提交
+        };
+      });
     </script>
-</body>
-
+  </body>
 </html>

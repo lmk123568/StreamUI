@@ -1,116 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1"
+    />
+    <style>
+      .layui-form-item {
+        margin: 20px 50px;
+      }
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <style>
-    .layui-form-item {
-      margin: 20px 50px;
-    }
+      .layui-table-cell .layui-form-switch {
+        display: block;
+        width: 45px;
+      }
 
-    .layui-table-cell .layui-form-switch {
-      display: block;
-      width: 45px;
-    }
+      .layui-form-switch {
+        margin-right: 5px;
+      }
 
-    .layui-form-switch {
-      margin-right: 5px;
-    }
+      .custom-switch {
+        /* display: inline-flex; */
+        display: block;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+        color: #555;
+        margin: auto;
+      }
 
-    .custom-switch {
-      /* display: inline-flex; */
-      display: block;
-      align-items: center;
-      cursor: pointer;
-      user-select: none;
-      color: #555;
-      margin: auto;
-    }
+      .custom-switch .switch-track {
+        width: 36px;
+        height: 20px;
+        background: #ddd;
+        border-radius: 14px;
+        padding: 2px;
+        transition: background 0.3s ease;
+        position: relative;
+      }
 
-    .custom-switch .switch-track {
-      width: 36px;
-      height: 20px;
-      background: #ddd;
-      border-radius: 14px;
-      padding: 2px;
-      transition: background 0.3s ease;
-      position: relative;
-    }
+      .custom-switch .switch-thumb {
+        width: 16px;
+        height: 16px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
 
-    .custom-switch .switch-thumb {
-      width: 16px;
-      height: 16px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform 0.3s ease;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
+      /* 开启状态 */
+      .custom-switch[data-status="on"] .switch-track {
+        background: #16b777;
+      }
 
-    /* 开启状态 */
-    .custom-switch[data-status="on"] .switch-track {
-      background: #16b777;
-    }
+      .custom-switch[data-status="on"] .switch-thumb {
+        transform: translateX(8px);
+      }
 
-    .custom-switch[data-status="on"] .switch-thumb {
-      transform: translateX(8px);
-    }
+      .custom-switch[data-status="off"] .switch-thumb {
+        transform: translateX(-7px);
+      }
+    </style>
+  </head>
 
-    .custom-switch[data-status="off"] .switch-thumb {
-      transform: translateX(-7px);
-    }
-  </style>
-</head>
-
-<body>
-  <div style="padding: 16px 16px 0 16px">
-    <div class="layui-card">
-      <div class="layui-card-body">
-        <div>
-          <button class="layui-btn" id="ID_pull_onvif_btn" style="background-color: #16baaa" type="button">
-            ONVIF接入
-          </button>
-          <button class="layui-btn" id="ID_pull_url_btn" style="background-color: #16baaa" type="button">
-            直播流接入
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div style="padding: 16px">
-    <div class="layui-card">
-      <!-- <div class="layui-card-header">流ID列表</div> -->
-      <div class="layui-card-body">
-        <div class="layui-form" style="padding-bottom: 16px">
-          <div class="layui-inline">
-            <div class="layui-input-inline" style="width: 200px; margin-right: 16px">
-              <input type="text" id="ID_searchApp" placeholder="搜索应用名" class="layui-input" />
-            </div>
-            <div class="layui-input-inline" style="width: 200px; margin-right: 16px">
-              <input type="text" id="ID_searchStream" placeholder="搜索流ID" class="layui-input" />
-            </div>
-            <button type="button" class="layui-btn layui-btn-sm" style="background-color: #16baaa; width: 54px"
-              id="ID_table_btnSearch">
-              搜索
+  <body>
+    <div style="padding: 16px 16px 0 16px">
+      <div class="layui-card">
+        <div class="layui-card-body">
+          <div>
+            <button
+              class="layui-btn"
+              id="ID_pull_onvif_btn"
+              style="background-color: #16baaa"
+              type="button"
+            >
+              ONVIF接入
             </button>
-            <button type="button" class="layui-btn layui-btn-sm layui-btn-primary" style="width: 54px"
-              id="ID_table_btnReset">
-              重置
+            <button
+              class="layui-btn"
+              id="ID_pull_url_btn"
+              style="background-color: #16baaa"
+              type="button"
+            >
+              直播流接入
             </button>
           </div>
         </div>
-
-        <table class="layui-hide" id="ID_streams_table"></table>
       </div>
     </div>
-  </div>
 
-  <!-- 直播流接入 模板 -->
-  <script id="ID_tpl_pull_url" type="text/html">
+    <div style="padding: 16px">
+      <div class="layui-card">
+        <!-- <div class="layui-card-header">流ID列表</div> -->
+        <div class="layui-card-body">
+          <div class="layui-form" style="padding-bottom: 16px">
+            <div class="layui-inline">
+              <div
+                class="layui-input-inline"
+                style="width: 200px; margin-right: 16px"
+              >
+                <input
+                  type="text"
+                  id="ID_searchApp"
+                  placeholder="搜索应用名"
+                  class="layui-input"
+                />
+              </div>
+              <div
+                class="layui-input-inline"
+                style="width: 200px; margin-right: 16px"
+              >
+                <input
+                  type="text"
+                  id="ID_searchStream"
+                  placeholder="搜索流ID"
+                  class="layui-input"
+                />
+              </div>
+              <button
+                type="button"
+                class="layui-btn layui-btn-sm"
+                style="background-color: #16baaa; width: 54px"
+                id="ID_table_btnSearch"
+              >
+                搜索
+              </button>
+              <button
+                type="button"
+                class="layui-btn layui-btn-sm layui-btn-primary"
+                style="width: 54px"
+                id="ID_table_btnReset"
+              >
+                重置
+              </button>
+            </div>
+          </div>
+
+          <table class="layui-hide" id="ID_streams_table"></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 直播流接入 模板 -->
+    <script id="ID_tpl_pull_url" type="text/html">
       <form id="ID_active_pull_form" class="layui-form" action="">
-
-
         <!-- 源流地址 -->
         <div class="layui-form-item">
           <label class="layui-form-label">直播流地址</label>
@@ -252,8 +286,8 @@
       </form>
     </script>
 
-  <!-- ONVIF接入 模板 -->
-  <script id="ID_tpl_pull_onvif" type="text/html">
+    <!-- ONVIF接入 模板 -->
+    <script id="ID_tpl_pull_onvif" type="text/html">
       <form id="ID_active_pull_form" class="layui-form" action="">
         <!-- 摄像机IP -->
         <div class="layui-form-item">
@@ -266,7 +300,6 @@
               placeholder="请输入 IP"
               autocomplete="off"
               class="layui-input"
-              value="172.60.34.111"
             />
           </div>
           <div class="layui-form-mid">:</div>
@@ -281,7 +314,6 @@
               placeholder="端口"
               autocomplete="off"
               class="layui-input"
-              
             />
           </div>
         </div>
@@ -297,7 +329,6 @@
               placeholder="请输入用户名"
               autocomplete="off"
               class="layui-input"
-              value="admin"
             />
           </div>
         </div>
@@ -313,7 +344,6 @@
               placeholder="请输入密码"
               autocomplete="off"
               class="layui-input"
-              value="Xifu@2021"
             />
           </div>
         </div>
@@ -336,13 +366,18 @@
           id="device_info_area"
           style="display:none; margin-top: 20px; padding: 15px; background: #f8f8f8; border-radius: 4px;"
         >
-
           <div class="layui-form-item" style="margin-top: 15px;">
-            <label class="layui-form-label" style="padding-top: 0;">设备信息</label>
+            <label class="layui-form-label" style="padding-top: 0;"
+              >设备信息</label
+            >
             <div class="layui-input-block">
-              <p><strong>厂商：</strong><span id="device_manufacturer"></span></p>
+              <p>
+                <strong>厂商：</strong><span id="device_manufacturer"></span>
+              </p>
               <p><strong>型号：</strong><span id="device_model"></span></p>
-              <p><strong>固件版本：</strong><span id="device_firmware"></span></p>
+              <p>
+                <strong>固件版本：</strong><span id="device_firmware"></span>
+              </p>
               <p><strong>序列号：</strong><span id="device_serial"></span></p>
             </div>
           </div>
@@ -355,9 +390,7 @@
                 name="selected_profile_token"
                 lay-filter="profile_select"
                 id="profile_select"
-              >
-                
-              </select>
+              ></select>
             </div>
           </div>
         </div>
@@ -426,8 +459,8 @@
       </form>
     </script>
 
-  <!-- toolbar 模板 -->
-  <script id="ID_tpl_toolbar" type="text/html">
+    <!-- toolbar 模板 -->
+    <script id="ID_tpl_toolbar" type="text/html">
       <a
         class="layui-btn"
         lay-event="play"
@@ -442,8 +475,8 @@
       >
     </script>
 
-  <!-- player 模板 -->
-  <script id="ID_tpl_player" type="text/html">
+    <!-- player 模板 -->
+    <script id="ID_tpl_player" type="text/html">
       <div
         style="display: flex;justify-content: center;align-items: center; margin: 16px 16px 0 16px; flex-direction: column;"
       >
@@ -462,8 +495,8 @@
       </div>
     </script>
 
-  <!-- record 模板 -->
-  <script id="ID_tpl_record" type="text/html">
+    <!-- record 模板 -->
+    <script id="ID_tpl_record" type="text/html">
       <form id="ID_record_form" class="layui-form" action="">
         <!-- 录像 -->
         <div class="layui-form-item">
@@ -498,436 +531,441 @@
       </form>
     </script>
 
-  <script>
-    layui.use(["table", "layer", "form", "tabs", "jquery"], function () {
-      let table = layui.table;
-      let layer = layui.layer;
-      let form = layui.form;
-      let tabs = layui.tabs;
-      let $ = layui.jquery;
+    <script>
+      layui.use(["table", "layer", "form", "tabs", "jquery"], function () {
+        let table = layui.table;
+        let layer = layui.layer;
+        let form = layui.form;
+        let tabs = layui.tabs;
+        let $ = layui.jquery;
 
-      function renderTable() {
-        const app = $("#ID_searchApp").val().trim();
-        const stream = $("#ID_searchStream").val().trim();
+        // 渲染表格
+        function renderTable() {
+          const app = $("#ID_searchApp").val().trim();
+          const stream = $("#ID_searchStream").val().trim();
 
-        // 先获取拉流代理列表（主数据）
-        $.ajax({
-          url: "/api/stream/pull-proxy-list",
-          type: "GET",
-          dataType: "json",
-          timeout: 10000,
-          success: function (proxyRes) {
-            if (proxyRes.code !== 0) {
-              layer.msg("❌ 拉流代理列表获取失败", {
-                time: 1500,
-                offset: "t",
-                shift: 1,
-              });
-              return;
-            }
-
-            let proxyList = proxyRes.data || [];
-
-            // 应用搜索过滤（按代理中的 app / stream）
-            if (app) {
-              proxyList = proxyList.filter((item) =>
-                item.src.app.includes(app)
-              );
-            }
-            if (stream) {
-              proxyList = proxyList.filter((item) =>
-                item.src.stream.includes(stream)
-              );
-            }
-
-            // 再获取当前活跃流列表
-            $.ajax({
-              url: "/api/stream/streamid-list",
-              type: "GET",
-              dataType: "json",
-              timeout: 10000,
-              success: function (streamRes) {
-                if (streamRes.code !== 0) {
-                  layer.msg("❌ 活跃流列表获取失败", {
-                    time: 1500,
-                    offset: "t",
-                    shift: 1,
-                  });
-                  return;
-                }
-
-                // 构建活跃流的 key 集合，并保存 aliveSecond 等信息
-                const activeStreamMap = {};
-                (streamRes.data || [])
-                  .filter((item) => item.originTypeStr === "pull") // 只关心 pull 类型
-                  .forEach((item) => {
-                    const key = `${item.vhost}/${item.app}/${item.stream}`;
-                    activeStreamMap[key] = item; // 存整个对象，方便取 aliveSecond 等
-                  });
-
-                // 融合数据：以 proxyList 为主
-                const tableData = proxyList.map((item) => {
-                  const key = `${item.src.vhost}/${item.src.app}/${item.src.stream}`;
-                  const activeInfo = activeStreamMap[key];
-
-                  return {
-                    vhost: item.src.vhost,
-                    app: item.src.app,
-                    stream: item.src.stream,
-                    url: item.url,
-                    rePullCount: item.rePullCount,
-
-                    isOnline: !!activeInfo, // 是否在线
-                    totalReaderCount: activeInfo
-                      ? activeInfo.totalReaderCount
-                      : "-",
-                    aliveSecond: activeInfo ? activeInfo.aliveSecond : "-",
-                    isRecordingMP4: activeInfo
-                      ? activeInfo.isRecordingMP4
-                      : "-",
-                    schemas: activeInfo ? activeInfo.schemas : "-",
-                  };
+          // 先获取拉流代理列表（主数据）
+          $.ajax({
+            url: "/api/stream/pull-proxy-list",
+            type: "GET",
+            dataType: "json",
+            timeout: 10000,
+            success: function (proxyRes) {
+              if (proxyRes.code !== 0) {
+                layer.msg("❌ 拉流代理列表获取失败", {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
                 });
+                return;
+              }
 
-                // 渲染表格
-                table.render({
-                  elem: "#ID_streams_table",
-                  data: tableData,
-                  cols: [
-                    [
-                      {
-                        field: "id",
-                        title: "序号",
-                        align: "center",
-                        width: 80,
-                        templet: function (d) {
-                          return d.LAY_NUM;
-                        },
-                      },
-                      {
-                        field: "app",
-                        title: "应用名",
-                        align: "center",
-                        width: 120,
-                      },
-                      {
-                        field: "stream",
-                        title: "流ID",
-                        align: "center",
-                        width: 180,
-                      },
-                      {
-                        field: "isOnline",
-                        title: "在线",
-                        align: "center",
-                        width: 120,
-                        templet: function (d) {
-                          let text = d.isOnline ? "✅" : "❌";
-                          return `<span>${text}</span>`;
-                        },
-                      },
-                      {
-                        field: "url",
-                        title: "源流地址",
-                        align: "center",
-                        minWidth: 300,
-                        templet: function (d) {
-                          return `<span>${d.url}</span>`;
-                        },
-                      },
-                      {
-                        field: "rePullCount",
-                        title: "重连次数",
-                        align: "center",
-                        width: 120,
-                      },
-                      {
-                        field: "aliveSecond",
-                        title: "时长",
-                        align: "center",
-                        width: 120,
-                        templet: function (d) {
-                          if (d.aliveSecond === "-") {
-                            return "-";
-                          }
+              let proxyList = proxyRes.data || [];
 
-                          let seconds = d.aliveSecond;
-                          let h = Math.floor(seconds / 3600);
-                          let m = Math.floor((seconds % 3600) / 60);
-                          let s = seconds % 60;
-                          return (
-                            (h < 10 ? "0" + h : h) +
-                            ":" +
-                            (m < 10 ? "0" + m : m) +
-                            ":" +
-                            (s < 10 ? "0" + s : s)
-                          );
+              // 应用搜索过滤（按代理中的 app / stream）
+              if (app) {
+                proxyList = proxyList.filter((item) =>
+                  item.src.app.includes(app)
+                );
+              }
+              if (stream) {
+                proxyList = proxyList.filter((item) =>
+                  item.src.stream.includes(stream)
+                );
+              }
+
+              // 再获取当前活跃流列表
+              $.ajax({
+                url: "/api/stream/streamid-list",
+                type: "GET",
+                dataType: "json",
+                timeout: 10000,
+                success: function (streamRes) {
+                  if (streamRes.code !== 0) {
+                    layer.msg("❌ 活跃流列表获取失败", {
+                      time: 1500,
+                      offset: "t",
+                      shift: 1,
+                    });
+                    return;
+                  }
+
+                  // 构建活跃流的 key 集合，并保存 aliveSecond 等信息
+                  const activeStreamMap = {};
+                  (streamRes.data || [])
+                    .filter((item) => item.originTypeStr === "pull") // 只关心 pull 类型
+                    .forEach((item) => {
+                      const key = `${item.vhost}/${item.app}/${item.stream}`;
+                      activeStreamMap[key] = item; // 存整个对象，方便取 aliveSecond 等
+                    });
+
+                  // 融合数据：以 proxyList 为主
+                  const tableData = proxyList.map((item) => {
+                    const key = `${item.src.vhost}/${item.src.app}/${item.src.stream}`;
+                    const activeInfo = activeStreamMap[key];
+
+                    return {
+                      vhost: item.src.vhost,
+                      app: item.src.app,
+                      stream: item.src.stream,
+                      url: item.url,
+                      rePullCount: item.rePullCount,
+
+                      isOnline: !!activeInfo, // 是否在线
+                      totalReaderCount: activeInfo
+                        ? activeInfo.totalReaderCount
+                        : "-",
+                      aliveSecond: activeInfo ? activeInfo.aliveSecond : "-",
+                      isRecordingMP4: activeInfo
+                        ? activeInfo.isRecordingMP4
+                        : "-",
+                      schemas: activeInfo ? activeInfo.schemas : "-",
+                    };
+                  });
+
+                  // 渲染表格
+                  table.render({
+                    elem: "#ID_streams_table",
+                    data: tableData,
+                    cols: [
+                      [
+                        {
+                          field: "id",
+                          title: "序号",
+                          align: "center",
+                          width: 80,
+                          templet: function (d) {
+                            return d.LAY_NUM;
+                          },
                         },
-                      },
-                      {
-                        field: "isRecordingMP4",
-                        title: "录制",
-                        align: "center",
-                        width: 120,
-                        templet: function (d) {
-                          if (d.isRecordingMP4 === "-") {
-                            return "-";
-                          }
+                        {
+                          field: "app",
+                          title: "应用名",
+                          align: "center",
+                          width: 120,
+                        },
+                        {
+                          field: "stream",
+                          title: "流ID",
+                          align: "center",
+                          width: 180,
+                        },
+                        {
+                          field: "isOnline",
+                          title: "在线",
+                          align: "center",
+                          width: 120,
+                          templet: function (d) {
+                            let text = d.isOnline ? "✅" : "❌";
+                            return `<span>${text}</span>`;
+                          },
+                        },
+                        {
+                          field: "url",
+                          title: "源流地址",
+                          align: "center",
+                          minWidth: 300,
+                          templet: function (d) {
+                            return `<span>${d.url}</span>`;
+                          },
+                        },
+                        {
+                          field: "rePullCount",
+                          title: "重连次数",
+                          align: "center",
+                          width: 120,
+                        },
+                        {
+                          field: "aliveSecond",
+                          title: "时长",
+                          align: "center",
+                          width: 120,
+                          templet: function (d) {
+                            if (d.aliveSecond === "-") {
+                              return "-";
+                            }
 
-                          let checked = d.isRecordingMP4 ? "checked" : "";
+                            let seconds = d.aliveSecond;
+                            let h = Math.floor(seconds / 3600);
+                            let m = Math.floor((seconds % 3600) / 60);
+                            let s = seconds % 60;
+                            return (
+                              (h < 10 ? "0" + h : h) +
+                              ":" +
+                              (m < 10 ? "0" + m : m) +
+                              ":" +
+                              (s < 10 ? "0" + s : s)
+                            );
+                          },
+                        },
+                        {
+                          field: "isRecordingMP4",
+                          title: "录制",
+                          align: "center",
+                          width: 120,
+                          templet: function (d) {
+                            if (d.isRecordingMP4 === "-") {
+                              return "-";
+                            }
 
-                          return `<div style="display: flex;justify-content: center;align-items: center; width: 100%; height: 100%;">
-                                    <div class="custom-switch" lay-event="toggleRecord" data-vhost="${d.vhost
-                            }" data-app="${d.app}" data-stream="${d.stream
+                            let checked = d.isRecordingMP4 ? "checked" : "";
+
+                            return `<div style="display: flex;justify-content: center;align-items: center; width: 100%; height: 100%;">
+                                    <div class="custom-switch" lay-event="toggleRecord" data-vhost="${
+                                      d.vhost
+                                    }" data-app="${d.app}" data-stream="${
+                              d.stream
                             }" data-status="${d.isRecordingMP4 ? "on" : "off"}">
                                       <div class="switch-track">
                                         <div class="switch-thumb"></div>
                                       </div>
                                     </div>
                                   </div>`;
+                          },
                         },
-                      },
 
-                      {
-                        field: "totalReaderCount",
-                        title: "总观看人数",
-                        align: "center",
-                        width: 120,
-                      },
-                      {
-                        field: "schemas",
-                        title: "转协议",
-                        align: "center",
-                        minWidth: 150,
-                        templet: function (d) {
-                          if (d.schemas === "-") {
-                            return "-";
-                          }
-
-                          // 协议映射配置（可全局定义一次）
-                          const schemaConfig = [
-                            { key: "rtsp", name: "RTSP" },
-                            { key: "rtmp", name: "RTMP" },
-                            { key: "hls", name: "HLS" },
-                            { key: "hls.fmp4", name: "HLS-fMP4" },
-                            { key: "ts", name: "HTTP-TS" },
-                            { key: "fmp4", name: "HTTP-fMP4" },
-                            { key: "webrtc", name: "WebRTC" },
-                            { key: "rtc", name: "RTC" },
-                          ];
-
-                          // 提取 schemas 中的 protocol
-                          let enabledSchemas = Array.isArray(d.schemas)
-                            ? d.schemas.map((item) => item.schema)
-                            : [];
-
-                          // 去重
-                          let uniqueSchemas = [...new Set(enabledSchemas)];
-
-                          if (uniqueSchemas.length === 0) {
-                            return '<span class="layui-badge layui-bg-gray" style="font-size:14px;border-radius:5px;">无</span>';
-                          }
-
-                          // 映射为 badge
-                          return uniqueSchemas
-                            .map((schema) => {
-                              let config = schemaConfig.find(
-                                (p) => p.key === schema
-                              );
-                              let displayName = config
-                                ? config.name
-                                : schema.toUpperCase();
-                              return `<span class="layui-badge" style="margin-right: 4px; font-size: 14px; background-color: #31bdec; border-radius: 5px">${displayName}</span>`;
-                            })
-                            .join("");
+                        {
+                          field: "totalReaderCount",
+                          title: "总观看人数",
+                          align: "center",
+                          width: 120,
                         },
-                      },
-                      {
-                        field: "operate",
-                        title: "操作",
-                        width: 200,
-                        align: "center",
-                        fixed: "right",
-                        toolbar: "#ID_tpl_toolbar",
-                      },
+                        {
+                          field: "schemas",
+                          title: "转协议",
+                          align: "center",
+                          minWidth: 150,
+                          templet: function (d) {
+                            if (d.schemas === "-") {
+                              return "-";
+                            }
+
+                            // 协议映射配置（可全局定义一次）
+                            const schemaConfig = [
+                              { key: "rtsp", name: "RTSP" },
+                              { key: "rtmp", name: "RTMP" },
+                              { key: "hls", name: "HLS" },
+                              { key: "hls.fmp4", name: "HLS-fMP4" },
+                              { key: "ts", name: "HTTP-TS" },
+                              { key: "fmp4", name: "HTTP-fMP4" },
+                              { key: "webrtc", name: "WebRTC" },
+                              { key: "rtc", name: "RTC" },
+                            ];
+
+                            // 提取 schemas 中的 protocol
+                            let enabledSchemas = Array.isArray(d.schemas)
+                              ? d.schemas.map((item) => item.schema)
+                              : [];
+
+                            // 去重
+                            let uniqueSchemas = [...new Set(enabledSchemas)];
+
+                            if (uniqueSchemas.length === 0) {
+                              return '<span class="layui-badge layui-bg-gray" style="font-size:14px;border-radius:5px;">无</span>';
+                            }
+
+                            // 映射为 badge
+                            return uniqueSchemas
+                              .map((schema) => {
+                                let config = schemaConfig.find(
+                                  (p) => p.key === schema
+                                );
+                                let displayName = config
+                                  ? config.name
+                                  : schema.toUpperCase();
+                                return `<span class="layui-badge" style="margin-right: 4px; font-size: 14px; background-color: #31bdec; border-radius: 5px">${displayName}</span>`;
+                              })
+                              .join("");
+                          },
+                        },
+                        {
+                          field: "operate",
+                          title: "操作",
+                          width: 200,
+                          align: "center",
+                          fixed: "right",
+                          toolbar: "#ID_tpl_toolbar",
+                        },
+                      ],
                     ],
-                  ],
-                  page: true,
-                  limits: [8, 16, 32],
-                  limit: 8,
-                });
-              },
-              error: function () {
-                layer.msg("❌ 活跃流列表请求失败", {
-                  time: 1500,
-                  offset: "t",
-                  shift: 1,
-                });
-              },
-            });
-          },
-          error: function () {
-            layer.msg("❌ 拉流代理列表请求失败", {
-              time: 1500,
-              offset: "t",
-              shift: 1,
-            });
-          },
-        });
-      }
+                    page: true,
+                    limits: [8, 16, 32],
+                    limit: 8,
+                  });
+                },
+                error: function () {
+                  layer.msg("❌ 活跃流列表请求失败", {
+                    time: 1500,
+                    offset: "t",
+                    shift: 1,
+                  });
+                },
+              });
+            },
+            error: function () {
+              layer.msg("❌ 拉流代理列表请求失败", {
+                time: 1500,
+                offset: "t",
+                shift: 1,
+              });
+            },
+          });
+        }
 
-      // 监听表格按钮
-      table.on("tool(ID_streams_table)", function (obj) {
-        let data = obj.data; // 当前行数据
-        let layEvent = obj.event; // 获取 lay-event 的值（del, play）
+        // 监听表格按钮
+        table.on("tool(ID_streams_table)", function (obj) {
+          let data = obj.data; // 当前行数据
+          let layEvent = obj.event; // 获取 lay-event 的值（del, play）
 
-        if (layEvent === "play") {
-          let playerElement = null;
-          let statusElement = null;
+          if (layEvent === "play") {
+            let playerElement = null;
+            let statusElement = null;
 
-          layer.open({
-            type: 1,
-            title: "预览",
-            area: ["1000px", "100%"],
-            content: $("#ID_tpl_player").html(),
-            btn: [],
-            shadeClose: true,
-            success: function () {
-              playerElement = document.getElementById("ID_player");
-              statusElement = document.getElementById("ID_status");
+            layer.open({
+              type: 1,
+              title: "预览",
+              area: ["1000px", "100%"],
+              content: $("#ID_tpl_player").html(),
+              btn: [],
+              shadeClose: true,
+              success: function () {
+                playerElement = document.getElementById("ID_player");
+                statusElement = document.getElementById("ID_status");
 
-              let hasfMP4 = Array.isArray(data.schemas)
-                ? data.schemas.some((item) => item.schema === "fmp4")
-                : false;
+                let hasfMP4 = Array.isArray(data.schemas)
+                  ? data.schemas.some((item) => item.schema === "fmp4")
+                  : false;
 
-              if (!hasfMP4) {
-                if (statusElement) {
-                  statusElement.textContent = "请在设置中开启 HTTP-fMP4 分发";
-                  statusElement.style.display = "flex";
-                }
-              } else {
-                playerElement.src = `http://${window.location.hostname}:8080/${data.app}/${data.stream}.live.mp4`;
-                playerElement.load();
-
-                playerElement.play().catch((e) => {
-                  console.error("播放失败:", e);
+                if (!hasfMP4) {
                   if (statusElement) {
-                    statusElement.textContent = "播放失败，请检查流是否存在";
+                    statusElement.textContent = "请在设置中开启 HTTP-fMP4 分发";
                     statusElement.style.display = "flex";
                   }
-                });
-              }
+                } else {
+                  playerElement.src = `http://${window.location.hostname}:8080/${data.app}/${data.stream}.live.mp4`;
+                  playerElement.load();
 
-              let schemaConfig = {
-                rtsp: {
-                  name: "RTSP",
-                  port: 8554,
-                  url: `rtsp://${window.location.hostname}:8554/${data.app}/${data.stream}`,
-                },
-                rtmp: {
-                  name: "RTMP",
-                  port: 1935,
-                  url: `rtmp://${window.location.hostname}:1935/${data.app}/${data.stream}`,
-                },
-                hls: {
-                  name: "HLS",
-                  port: 8080,
-                  url: `http://${window.location.hostname}:8080/${data.app}/${data.stream}/hls.m3u8`,
-                },
-                "hls.fmp4": {
-                  name: "HLS-fMP4",
-                  port: 8080,
-                  url: `http://${window.location.hostname}:8080/${data.app}/${data.stream}/hls.fmp4.m3u8`,
-                },
-                ts: {
-                  name: "HTTP-TS",
-                  port: 8080,
-                  url: `http://${window.location.hostname}:8080/${data.app}/${data.stream}.live.ts`,
-                },
-                fmp4: {
-                  name: "HTTP-fMP4",
-                  port: 8080,
-                  url: `http://${window.location.hostname}:8080/${data.app}/${data.stream}.live.mp4`,
-                },
-              };
+                  playerElement.play().catch((e) => {
+                    console.error("播放失败:", e);
+                    if (statusElement) {
+                      statusElement.textContent = "播放失败，请检查流是否存在";
+                      statusElement.style.display = "flex";
+                    }
+                  });
+                }
 
-              let headers = [];
-              let bodies = [];
+                let schemaConfig = {
+                  rtsp: {
+                    name: "RTSP",
+                    port: 8554,
+                    url: `rtsp://${window.location.hostname}:8554/${data.app}/${data.stream}`,
+                  },
+                  rtmp: {
+                    name: "RTMP",
+                    port: 1935,
+                    url: `rtmp://${window.location.hostname}:1935/${data.app}/${data.stream}`,
+                  },
+                  hls: {
+                    name: "HLS",
+                    port: 8080,
+                    url: `http://${window.location.hostname}:8080/${data.app}/${data.stream}/hls.m3u8`,
+                  },
+                  "hls.fmp4": {
+                    name: "HLS-fMP4",
+                    port: 8080,
+                    url: `http://${window.location.hostname}:8080/${data.app}/${data.stream}/hls.fmp4.m3u8`,
+                  },
+                  ts: {
+                    name: "HTTP-TS",
+                    port: 8080,
+                    url: `http://${window.location.hostname}:8080/${data.app}/${data.stream}.live.ts`,
+                  },
+                  fmp4: {
+                    name: "HTTP-fMP4",
+                    port: 8080,
+                    url: `http://${window.location.hostname}:8080/${data.app}/${data.stream}.live.mp4`,
+                  },
+                };
 
-              (Array.isArray(data.schemas) ? data.schemas : [])
-                .filter((item) => item.schema) // 确保 schema 存在
-                .forEach((item) => {
-                  let schema = item.schema;
-                  let tracks = item.tracks || [];
-                  let bytesSpeed = item.bytesSpeed || 0;
-                  let readerCount = item.readerCount || 0;
-                  let totalBytes = item.totalBytes || 0;
+                let headers = [];
+                let bodies = [];
 
-                  // 格式化流量单位（B, KB, MB, GB）
-                  function formatBytes(bytes) {
-                    if (bytes === 0) return "0 B";
-                    const k = 1024;
-                    const sizes = ["B", "KB", "MB", "GB"];
-                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                    return (
-                      parseFloat((bytes / Math.pow(k, i)).toFixed(2)) +
-                      " " +
-                      sizes[i]
-                    );
-                  }
+                (Array.isArray(data.schemas) ? data.schemas : [])
+                  .filter((item) => item.schema) // 确保 schema 存在
+                  .forEach((item) => {
+                    let schema = item.schema;
+                    let tracks = item.tracks || [];
+                    let bytesSpeed = item.bytesSpeed || 0;
+                    let readerCount = item.readerCount || 0;
+                    let totalBytes = item.totalBytes || 0;
 
-                  // 构建轨道信息 HTML
-                  let trackHtml = `<div style='line-height: 1.8;'>轨道信息：<br>`;
-                  if (tracks.length === 0) {
-                    trackHtml += `<span>无轨道信息</span><br>`;
-                  } else {
-                    tracks.forEach((track) => {
-                      let type =
-                        track.codec_type === 0
-                          ? "Video"
-                          : track.codec_type === 1
+                    // 格式化流量单位（B, KB, MB, GB）
+                    function formatBytes(bytes) {
+                      if (bytes === 0) return "0 B";
+                      const k = 1024;
+                      const sizes = ["B", "KB", "MB", "GB"];
+                      const i = Math.floor(Math.log(bytes) / Math.log(k));
+                      return (
+                        parseFloat((bytes / Math.pow(k, i)).toFixed(2)) +
+                        " " +
+                        sizes[i]
+                      );
+                    }
+
+                    // 构建轨道信息 HTML
+                    let trackHtml = `<div style='line-height: 1.8;'>轨道信息：<br>`;
+                    if (tracks.length === 0) {
+                      trackHtml += `<span>无轨道信息</span><br>`;
+                    } else {
+                      tracks.forEach((track) => {
+                        let type =
+                          track.codec_type === 0
+                            ? "Video"
+                            : track.codec_type === 1
                             ? "Audio"
                             : "Other";
 
-                      let detail = "";
-                      if (track.codec_type === 0) {
-                        // 视频
-                        detail = `编码 ${track.codec_id_name}，分辨率 ${track.width
-                          }x${track.height}@${track.fps || "?"}FPS，GOP ${track.gop_size
+                        let detail = "";
+                        if (track.codec_type === 0) {
+                          // 视频
+                          detail = `编码 ${track.codec_id_name}，分辨率 ${
+                            track.width
+                          }x${track.height}@${track.fps || "?"}FPS，GOP ${
+                            track.gop_size
                           } (${track.gop_interval_ms}ms)`;
-                      } else if (track.codec_type === 1) {
-                        // 音频
-                        detail = `编码 ${track.codec_id_name}，${track.sample_rate}Hz，${track.channels}声道`;
-                      } else {
-                        detail = `编码 ${track.codec_id_name || "Unknown"}`;
-                      }
-                      trackHtml += `<span>【${type}】${detail}</span><br>`;
-                    });
-                  }
-                  trackHtml += "</div>";
+                        } else if (track.codec_type === 1) {
+                          // 音频
+                          detail = `编码 ${track.codec_id_name}，${track.sample_rate}Hz，${track.channels}声道`;
+                        } else {
+                          detail = `编码 ${track.codec_id_name || "Unknown"}`;
+                        }
+                        trackHtml += `<span>【${type}】${detail}</span><br>`;
+                      });
+                    }
+                    trackHtml += "</div>";
 
-                  // 构建转发地址与统计信息
-                  let config = schemaConfig[schema] || {
-                    name: schema.toUpperCase(),
-                    url: "#",
-                  };
-                  let protocolName = config.name;
-                  let forwardUrl = config.url;
+                    // 构建转发地址与统计信息
+                    let config = schemaConfig[schema] || {
+                      name: schema.toUpperCase(),
+                      url: "#",
+                    };
+                    let protocolName = config.name;
+                    let forwardUrl = config.url;
 
-                  // 统计信息
-                  let statsHtml = `
+                    // 统计信息
+                    let statsHtml = `
                                     <div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 13px;">
                                       🌐 当前码率: ${(
-                      (bytesSpeed * 8) /
-                      1048576
-                    ).toFixed(2)} Mbps，
+                                        (bytesSpeed * 8) /
+                                        1048576
+                                      ).toFixed(2)} Mbps，
                                       👤 当前在线: ${readerCount} 人，
                                       📦 总流量: ${formatBytes(totalBytes)}
                                     </div>`;
 
-                  let copyCode = `copyToClipboard('${forwardUrl}')`;
+                    let copyCode = `copyToClipboard('${forwardUrl}')`;
 
-                  let html = `
+                    let html = `
                                 <div style="font-size: 14px; color: #333;">
 
                                   ${trackHtml}
@@ -956,80 +994,49 @@
                                   </div>
                                 </div>`;
 
-                  headers.push({ title: protocolName });
-                  bodies.push({ content: html });
+                    headers.push({ title: protocolName });
+                    bodies.push({ content: html });
+                  });
+
+                // 如果没有任何协议被启用
+                if (bodies.length === 0) {
+                  headers.push({ title: "无可用协议" });
+                  bodies.push({
+                    content: `<div style="color: #999; text-align: center; padding: 20px;">当前流未开启任何协议转发</div>`,
+                  });
+                }
+
+                // 渲染 Tabs
+                tabs.render({
+                  elem: "#ID_tabs",
+                  header: headers,
+                  body: bodies,
                 });
+              },
 
-              // 如果没有任何协议被启用
-              if (bodies.length === 0) {
-                headers.push({ title: "无可用协议" });
-                bodies.push({
-                  content: `<div style="color: #999; text-align: center; padding: 20px;">当前流未开启任何协议转发</div>`,
-                });
-              }
-
-              // 渲染 Tabs
-              tabs.render({
-                elem: "#ID_tabs",
-                header: headers,
-                body: bodies,
-              });
-            },
-
-            end: function () {
-              if (playerElement) {
-                playerElement.pause();
-                playerElement.src = ""; // 先清空，中断旧连接
-                playerElement.load();
-              }
-            },
-          });
-        } else if (layEvent === "del") {
-          // 关闭确认
-          layer.confirm(
-            `确定要关闭<span style = "margin-bottom: 6px; padding: 4px; background: #f7f7f7; border-radius: 4px;">${data.app} / ${data.stream}</span>吗?`,
-            {
-              title: "提示",
-            },
-            function (index) {
-              // 执行关闭请求
-              $.ajax({
-                url: `/api/stream/pull-proxy?vhost=${data.vhost}&app=${data.app}&stream=${data.stream}`,
-                type: "DELETE",
-                success: function (res) {
-                  console.log(res);
-
-                  if (res.code === 0) {
-                    layer.msg("✅ 关闭成功", {
-                      time: 1500,
-                      offset: "t",
-                      shift: 1,
-                    });
-                    renderTable();
-                  }
-                },
-              });
-
-              layer.close(index); // 关闭弹窗
-            }
-          );
-        } else if (layEvent === "toggleRecord") {
-          let vhost = data.vhost;
-          let app = data.app;
-          let stream = data.stream;
-          let isRecord = data.isRecordingMP4;
-
-          if (isRecord) {
+              end: function () {
+                if (playerElement) {
+                  playerElement.pause();
+                  playerElement.src = ""; // 先清空，中断旧连接
+                  playerElement.load();
+                }
+              },
+            });
+          } else if (layEvent === "del") {
+            // 关闭确认
             layer.confirm(
-              `确定要停止<span style = "margin-bottom: 6px; padding: 4px; background: #f7f7f7; border-radius: 4px;">${app} / ${stream}</span>录像吗?`,
+              `确定要关闭<span style = "margin-bottom: 6px; padding: 4px; background: #f7f7f7; border-radius: 4px;">${data.app} / ${data.stream}</span>吗?`,
               {
                 title: "提示",
               },
               function (index) {
+                // 执行关闭请求
                 $.ajax({
-                  url: `/api/record/stop-record?vhost=${vhost}&app=${app}&stream=${stream}`,
-                  type: "GET",
+                  url: `/api/stream/pull-proxy?vhost=${data.vhost}&app=${data.app}&stream=${data.stream}`,
+                  type: "DELETE",
                   success: function (res) {
+                    console.log(res);
+
                     if (res.code === 0) {
                       layer.msg("✅ 关闭成功", {
                         time: 1500,
@@ -1037,6 +1044,204 @@
                         shift: 1,
                       });
                       renderTable();
+                    }
+                  },
+                });
+
+                layer.close(index); // 关闭弹窗
+              }
+            );
+          } else if (layEvent === "toggleRecord") {
+            let vhost = data.vhost;
+            let app = data.app;
+            let stream = data.stream;
+            let isRecord = data.isRecordingMP4;
+
+            if (isRecord) {
+              layer.confirm(
+                `确定要停止<span style = "margin-bottom: 6px; padding: 4px; background: #f7f7f7; border-radius: 4px;">${app} / ${stream}</span>录像吗?`,
+                {
+                  title: "提示",
+                },
+                function (index) {
+                  $.ajax({
+                    url: `/api/playback/stop-record?vhost=${vhost}&app=${app}&stream=${stream}`,
+                    type: "GET",
+                    success: function (res) {
+                      if (res.code === 0) {
+                        layer.msg("✅ 关闭成功", {
+                          time: 1500,
+                          offset: "t",
+                          shift: 1,
+                        });
+                        renderTable();
+                      } else {
+                        layer.msg("⚠️ " + res.msg, {
+                          time: 1500,
+                          offset: "t",
+                          shift: 1,
+                        });
+                      }
+                    },
+                  });
+                  layer.close(index); // 关闭弹窗
+                }
+              );
+            } else {
+              layer.open({
+                type: 1,
+                title: "开启录像",
+                area: ["500px", "auto"],
+                content: $("#ID_tpl_record").html(),
+                btn: null,
+                shadeClose: true,
+                success: function (layero, index) {
+                  form.render();
+
+                  layero.find("#btn_submit").on("click", function (e) {
+                    e.preventDefault(); // 阻止默认提交（防止页面刷新）
+
+                    let $form = layero.find("#ID_record_form");
+
+                    let formData = {};
+                    $form.find("input, select").each(function () {
+                      let $el = $(this);
+                      let name = $el.attr("name");
+                      if (!name) return true; // elem 没有 name 就跳过
+
+                      let value;
+                      if ($el.is(":checkbox")) {
+                        // 处理 checkbox：checked 时取 value，否则为 'false'
+                        value = $el.is(":checked") ? "true" : "false";
+                      } else {
+                        value = $el.val();
+                      }
+
+                      formData[name] = value;
+                    });
+
+                    if (
+                      !/^\d+$/.test(formData["record_days"]) ||
+                      parseInt(formData["record_days"], 10) < 0 ||
+                      parseInt(formData["record_days"], 10) > 30
+                    ) {
+                      layer.msg("⚠️ 录像天数建议不要超过30天", {
+                        time: 1500,
+                        offset: "t",
+                        shift: 1,
+                      });
+                      return false;
+                    }
+                    // 发送请求
+                    $.ajax({
+                      url: `/api/playback/start-record?vhost=${vhost}&app=${app}&stream=${stream}&record_days=${formData["record_days"]}`,
+                      type: "GET",
+                      timeout: 5000,
+                      success: function (res) {
+                        if (res.code === 0) {
+                          layer.msg("✅ 开始录像", {
+                            time: 1500,
+                            offset: "t",
+                            shift: 1,
+                          });
+                          setTimeout(() => {
+                            layer.close(index);
+                          }, 400);
+                        } else {
+                          layer.msg("⚠️ " + res.msg, {
+                            time: 1500,
+                            offset: "t",
+                            shift: 1,
+                          });
+                        }
+                        renderTable();
+                      },
+                    });
+                  });
+
+                  layero.find("#btn_cancel").on("click", function () {
+                    layer.close(index);
+                  });
+                },
+                end: function () {
+                  // 监听弹窗关闭就刷新表格
+                  renderTable();
+                },
+              });
+            }
+          }
+        });
+
+        // 监听直播流接入按钮
+        $("#ID_pull_url_btn").on("click", function () {
+          layer.open({
+            type: 1,
+            title: "直播流接入",
+            area: ["700px", "400px"],
+            content: $("#ID_tpl_pull_url").html(),
+            shadeClose: true,
+            btn: null,
+            success: function (layero, index) {
+              // 渲染 layui 表单控件（如下拉框、开关）
+              form.render();
+
+              // 表单提交
+              layero.find("#btn_submit").on("click", function (e) {
+                e.preventDefault(); // 阻止默认提交（防止页面刷新）
+
+                // 获取表单
+                let $form = layero.find("#ID_active_pull_form");
+
+                // 必填项验证
+                let isValid = true;
+                $form.find("input[required]").each(function () {
+                  let val = $(this).val();
+                  if (!val || val.trim() === "") {
+                    let placeholder = $(this).attr("placeholder") || "该字段";
+
+                    layer.msg("⚠️ 请填写：" + placeholder, {
+                      time: 1500,
+                      offset: "t",
+                      shift: 1,
+                    });
+
+                    $(this).focus();
+                    isValid = false;
+                    return false; // 跳出 each 循环
+                  }
+                });
+                if (!isValid) return false;
+
+                let formData = {};
+                $form.find("input, select").each(function () {
+                  let $el = $(this);
+                  let name = $el.attr("name");
+                  if (!name) return true;
+
+                  let value;
+                  if ($el.is(":checkbox")) {
+                    value = $el.is(":checked") ? "true" : "false";
+                  } else {
+                    value = $el.val();
+                  }
+
+                  formData[name] = value;
+                });
+
+                $.ajax({
+                  url: `/api/stream/pull-proxy?app=${formData.app}&stream=${formData.stream}&url=${formData.url}&audio_type=${formData.audio_type}`,
+                  type: "POST",
+                  timeout: 5000,
+                  success: function (res) {
+                    if (res.code === 0) {
+                      layer.msg("✅ 添加成功", {
+                        time: 1500,
+                        offset: "t",
+                        shift: 1,
+                      });
+                      setTimeout(() => {
+                        layer.close(index);
+                      }, 300);
                     } else {
                       layer.msg("⚠️ " + res.msg, {
                         time: 1500,
@@ -1046,379 +1251,211 @@
                     }
                   },
                 });
-                layer.close(index); // 关闭弹窗
-              }
-            );
-          } else {
-            layer.open({
-              type: 1,
-              title: "开启录像",
-              area: ["500px", "auto"],
-              content: $("#ID_tpl_record").html(),
-              btn: null,
-              shadeClose: true,
-              success: function (layero, index) {
-                form.render();
+              });
 
-                layero.find("#btn_submit").on("click", function (e) {
-                  e.preventDefault(); // 阻止默认提交（防止页面刷新）
-
-                  let $form = layero.find("#ID_record_form");
-
-                  let formData = {};
-                  $form.find("input, select").each(function () {
-                    let $el = $(this);
-                    let name = $el.attr("name");
-                    if (!name) return true; // elem 没有 name 就跳过
-
-                    let value;
-                    if ($el.is(":checkbox")) {
-                      // 处理 checkbox：checked 时取 value，否则为 'false'
-                      value = $el.is(":checked") ? "true" : "false";
-                    } else {
-                      value = $el.val();
-                    }
-
-                    formData[name] = value;
-                  });
-
-                  if (
-                    !/^\d+$/.test(formData["record_days"]) ||
-                    parseInt(formData["record_days"], 10) < 0 ||
-                    parseInt(formData["record_days"], 10) > 30
-                  ) {
-                    layer.msg("⚠️ 录像天数建议不要超过30天", {
-                      time: 1500,
-                      offset: "t",
-                      shift: 1,
-                    });
-                    return false;
-                  }
-                  // 发送请求
-                  $.ajax({
-                    url: `/api/record/start-record?vhost=${vhost}&app=${app}&stream=${stream}&record_days=${formData["record_days"]}`,
-                    type: "GET",
-                    timeout: 5000,
-                    success: function (res) {
-                      if (res.code === 0) {
-                        layer.msg("✅ 开始录像", {
-                          time: 1500,
-                          offset: "t",
-                          shift: 1,
-                        });
-                        setTimeout(() => {
-                          layer.close(index);
-                        }, 400);
-                      } else {
-                        layer.msg("⚠️ " + res.msg, {
-                          time: 1500,
-                          offset: "t",
-                          shift: 1,
-                        });
-                      }
-                      renderTable();
-                    },
-                  });
-                });
-
-                layero.find("#btn_cancel").on("click", function () {
-                  layer.close(index);
-                });
-              },
-              end: function () {
-                // 监听弹窗关闭就刷新表格
+              // 绑定取消按钮事件
+              layero.find("#btn_cancel").on("click", function () {
+                layer.close(index);
+              });
+            },
+            end: function () {
+              // 监听弹窗关闭就刷新表格
+              setTimeout(() => {
                 renderTable();
-              },
-            });
-          }
-        }
-      });
+              }, 300);
+            },
+          });
+        });
 
-      // 监听直播流接入按钮
-      $("#ID_pull_url_btn").on("click", function () {
-        layer.open({
-          type: 1,
-          title: "直播流接入",
-          area: ["700px", "400px"],
-          content: $("#ID_tpl_pull_url").html(),
-          shadeClose: true,
-          btn: null,
-          success: function (layero, index) {
-            // 渲染 layui 表单控件（如下拉框、开关）
-            form.render();
+        // 监听onvif接入按钮
+        $("#ID_pull_onvif_btn").on("click", function () {
+          layer.open({
+            type: 1,
+            title: "ONVIF接入",
+            area: ["700px", "100%"],
+            content: $("#ID_tpl_pull_onvif").html(),
+            shadeClose: true,
+            btn: null,
+            success: function (layero, index) {
+              let $layer = $(layero);
 
-            // 表单提交
-            layero.find("#btn_submit").on("click", function (e) {
-              e.preventDefault(); // 阻止默认提交（防止页面刷新）
+              // 获取设备信息按钮
+              $layer.find("#btn_fetch_device").on("click", function () {
+                let ip = $layer.find('[name="onvif-cameraip"]').val().trim();
+                let port = $layer.find('[name="onvif-port"]').val().trim();
+                let user = $layer.find('[name="onvif-username"]').val().trim();
+                let pwd = $layer.find('[name="onvif-password"]').val().trim();
 
-              // 获取表单
-              let $form = layero.find("#ID_active_pull_form");
-
-              // 必填项验证
-              let isValid = true;
-              $form.find("input[required]").each(function () {
-                let val = $(this).val();
-                if (!val || val.trim() === "") {
-                  let placeholder = $(this).attr("placeholder") || "该字段";
-
-                  layer.msg("⚠️ 请填写：" + placeholder, {
+                if (!ip || !user || !pwd) {
+                  layer.msg("⚠️ 请填写完整的摄像机信息", {
                     time: 1500,
                     offset: "t",
                     shift: 1,
                   });
-
-                  $(this).focus();
-                  isValid = false;
-                  return false; // 跳出 each 循环
+                  return;
                 }
+
+                let loading = layer.load(2, { shade: [0.1, "#fff"] });
+
+                $.ajax({
+                  url: `/api/onvif/profiles?cameraip=${ip}&port=${port}&username=${user}&password=${pwd}`, // 替换为你的实际接口
+                  method: "GET",
+                  success: function (res) {
+                    layer.close(loading);
+
+                    if (res.code === 0 && res.data?.profiles?.length > 0) {
+                      let dev = res.data.device_info;
+                      $layer
+                        .find("#device_manufacturer")
+                        .text(dev.manufacturer || "-");
+                      $layer.find("#device_model").text(dev.model || "-");
+                      $layer
+                        .find("#device_firmware")
+                        .text(dev.firmware_version || "-");
+                      $layer
+                        .find("#device_serial")
+                        .text(dev.serial_number || "-");
+
+                      // 清空并填充码流选项
+                      let $select = $layer.find("#profile_select");
+                      $select
+                        .empty()
+                        .append('<option value="">请选择码流</option>');
+                      res.data.profiles.forEach(function (p) {
+                        let label = `${p.name} (${p.video.width}x${p.video.height}@${p.video.framerate}fps, ${p.video.encoding})`;
+                        $select.append(
+                          `<option value="${p.token}" data-url="${p.rtsp_url}">${label}</option>`
+                        );
+                      });
+
+                      $layer.find("#device_info_area").show();
+                      layui.form.render("select"); // 重新渲染下拉框
+                    } else {
+                      layer.msg("❌ 获取设备信息失败 " + res.msg, {
+                        time: 1500,
+                        offset: "t",
+                        shift: 1,
+                      });
+                    }
+                  },
+                  error: function () {
+                    layer.msg("❌ 网络请求失败，请检查接口", {
+                      time: 1500,
+                      offset: "t",
+                      shift: 1,
+                    });
+                  },
+                });
               });
-              if (!isValid) return false;
 
-              let formData = {};
-              $form.find("input, select").each(function () {
-                let $el = $(this);
-                let name = $el.attr("name");
-                if (!name) return true;
+              // 监听码流选择
+              layui.form.on("select(profile_select)", function (data) {
+                let $layer = $(data.elem)
+                  .closest(".layui-layer-content")
+                  .parent();
+                let selectedOption = $(data.elem).find("option:selected");
+                let url = selectedOption.data("url");
 
-                let value;
-                if ($el.is(":checkbox")) {
-                  value = $el.is(":checked") ? "true" : "false";
+                if (url) {
+                  console.log("选择了 ", url);
+
+                  // 显示后续表单项
+                  $layer.find("#app_item").show();
+                  $layer.find("#stream_item").show();
+                  $layer.find("#audio_item").show();
+                  $layer.find("#submit_btns").show();
+
+                  // 可选：自动填充流ID（例如从RTSP中提取）
+                  // 此处留空，由用户手动输入
                 } else {
-                  value = $el.val();
+                  console.log("未选择");
+
+                  $layer.find("#app_item").hide();
+                  $layer.find("#stream_item").hide();
+                  $layer.find("#audio_item").hide();
+                  $layer.find("#submit_btns").hide();
+                }
+              });
+
+              // 取消按钮
+              $layer.find("#btn_cancel").on("click", function () {
+                layer.close(index);
+              });
+
+              // 表单提交
+              $layer.find("#ID_active_pull_form").on("submit", function (e) {
+                e.preventDefault();
+
+                // 收集所有数据
+                let formData = {};
+                $(this)
+                  .serializeArray()
+                  .forEach(function (item) {
+                    formData[item.name] = item.value;
+                  });
+
+                // 添加 url
+                let selectedToken = formData["selected_profile_token"];
+                if (selectedToken) {
+                  let url = $layer
+                    .find(`#profile_select option[value="${selectedToken}"]`)
+                    .data("url");
+                  formData.url = url;
                 }
 
-                formData[name] = value;
-              });
-
-              $.ajax({
-                url: `/api/stream/pull-proxy?app=${formData.app}&stream=${formData.stream}&url=${formData.url}&audio_type=${formData.audio_type}`,
-                type: "POST",
-                timeout: 5000,
-                success: function (res) {
-                  if (res.code === 0) {
-                    layer.msg("✅ 添加成功", {
-                      time: 1500,
-                      offset: "t",
-                      shift: 1,
-                    });
-                    setTimeout(() => {
-                      layer.close(index);
-                    }, 300);
-                  } else {
-                    layer.msg("⚠️ " + res.msg, {
-                      time: 1500,
-                      offset: "t",
-                      shift: 1,
-                    });
-                  }
-                },
-              });
-            });
-
-            // 绑定取消按钮事件
-            layero.find("#btn_cancel").on("click", function () {
-              layer.close(index);
-            });
-          },
-          end: function () {
-            // 监听弹窗关闭就刷新表格
-            setTimeout(() => {
-              renderTable();
-            }, 300);
-          },
-        });
-      });
-
-      // 监听onvif接入按钮
-      $("#ID_pull_onvif_btn").on("click", function () {
-        layer.open({
-          type: 1,
-          title: "ONVIF接入",
-          area: ["700px", "100%"],
-          content: $("#ID_tpl_pull_onvif").html(),
-          shadeClose: true,
-          btn: null,
-          success: function (layero, index) {
-            let $layer = $(layero);
-
-            // 获取设备信息按钮
-            $layer.find("#btn_fetch_device").on("click", function () {
-              let ip = $layer.find('[name="onvif-cameraip"]').val().trim();
-              let port = $layer.find('[name="onvif-port"]').val().trim();
-              let user = $layer.find('[name="onvif-username"]').val().trim();
-              let pwd = $layer.find('[name="onvif-password"]').val().trim();
-
-              if (!ip || !user || !pwd) {
-                layer.msg("⚠️ 请填写完整的摄像机信息", {
-                  time: 1500,
-                  offset: "t",
-                  shift: 1,
+                // 这里可以提交到你的拉流接口
+                // console.log("提交数据：", formData);
+                $.ajax({
+                  url: `/api/stream/pull-proxy?app=${formData.app}&stream=${formData.stream}&url=${formData.url}&audio_type=${formData.audio_type}`,
+                  type: "POST",
+                  timeout: 5000,
+                  success: function (res) {
+                    if (res.code === 0) {
+                      layer.msg("✅ 添加成功", {
+                        time: 1500,
+                        offset: "t",
+                        shift: 1,
+                      });
+                      setTimeout(() => {
+                        layer.close(index);
+                      }, 300);
+                    } else {
+                      layer.msg("⚠️ " + res.msg, {
+                        time: 1500,
+                        offset: "t",
+                        shift: 1,
+                      });
+                    }
+                  },
                 });
-                return;
-              }
-
-              let loading = layer.load(2, { shade: [0.1, "#fff"] });
-
-              $.ajax({
-                url: `/api/onvif/profiles?cameraip=${ip}&port=${port}&username=${user}&password=${pwd}`, // 替换为你的实际接口
-                method: "GET",
-                success: function (res) {
-                  layer.close(loading);
-
-                  if (res.code === 0 && res.data?.profiles?.length > 0) {
-                    let dev = res.data.device_info;
-                    $layer
-                      .find("#device_manufacturer")
-                      .text(dev.manufacturer || "-");
-                    $layer.find("#device_model").text(dev.model || "-");
-                    $layer
-                      .find("#device_firmware")
-                      .text(dev.firmware_version || "-");
-                    $layer
-                      .find("#device_serial")
-                      .text(dev.serial_number || "-");
-
-                    // 清空并填充码流选项
-                    let $select = $layer.find("#profile_select");
-                    $select
-                      .empty()
-                      .append('<option value="">请选择码流</option>');
-                    res.data.profiles.forEach(function (p) {
-                      let label = `${p.name} (${p.video.width}x${p.video.height}@${p.video.framerate}fps, ${p.video.encoding})`;
-                      $select.append(
-                        `<option value="${p.token}" data-url="${p.rtsp_url}">${label}</option>`
-                      );
-                    });
-
-                    $layer.find("#device_info_area").show();
-                    layui.form.render("select"); // 重新渲染下拉框
-                  } else {
-                    layer.msg("❌ 获取设备信息失败 " + res.msg, {
-                      time: 1500,
-                      offset: "t",
-                      shift: 1,
-                    });
-                  }
-                },
-                error: function () {
-                  layer.msg("❌ 网络请求失败，请检查接口", {
-                    time: 1500,
-                    offset: "t",
-                    shift: 1,
-                  });
-                },
               });
-            });
-
-            // 监听码流选择
-            layui.form.on("select(profile_select)", function (data) {
-              let $layer = $(data.elem)
-                .closest(".layui-layer-content")
-                .parent();
-              let selectedOption = $(data.elem).find("option:selected");
-              let url = selectedOption.data("url");
-
-              if (url) {
-                console.log("选择了 ", url);
-
-                // 显示后续表单项
-                $layer.find("#app_item").show();
-                $layer.find("#stream_item").show();
-                $layer.find("#audio_item").show();
-                $layer.find("#submit_btns").show();
-
-                // 可选：自动填充流ID（例如从RTSP中提取）
-                // 此处留空，由用户手动输入
-              } else {
-                console.log("未选择");
-
-                $layer.find("#app_item").hide();
-                $layer.find("#stream_item").hide();
-                $layer.find("#audio_item").hide();
-                $layer.find("#submit_btns").hide();
-              }
-            });
-
-            // 取消按钮
-            $layer.find("#btn_cancel").on("click", function () {
-              layer.close(index);
-            });
-
-            // 表单提交
-            $layer.find("#ID_active_pull_form").on("submit", function (e) {
-              e.preventDefault();
-
-              // 收集所有数据
-              let formData = {};
-              $(this)
-                .serializeArray()
-                .forEach(function (item) {
-                  formData[item.name] = item.value;
-                });
-
-              // 添加 url
-              let selectedToken = formData["selected_profile_token"];
-              if (selectedToken) {
-                let url = $layer
-                  .find(`#profile_select option[value="${selectedToken}"]`)
-                  .data("url");
-                formData.url = url;
-              }
-
-              // 这里可以提交到你的拉流接口
-              // console.log("提交数据：", formData);
-              $.ajax({
-                url: `/api/stream/pull-proxy?app=${formData.app}&stream=${formData.stream}&url=${formData.url}&audio_type=${formData.audio_type}`,
-                type: "POST",
-                timeout: 5000,
-                success: function (res) {
-                  if (res.code === 0) {
-                    layer.msg("✅ 添加成功", {
-                      time: 1500,
-                      offset: "t",
-                      shift: 1,
-                    });
-                    setTimeout(() => {
-                      layer.close(index);
-                    }, 300);
-                  } else {
-                    layer.msg("⚠️ " + res.msg, {
-                      time: 1500,
-                      offset: "t",
-                      shift: 1,
-                    });
-                  }
-                },
-              });
-            });
-          },
-          end: function () {
-            // 监听弹窗关闭就刷新表格
-            setTimeout(() => {
-              renderTable();
-            }, 300);
-          },
+            },
+            end: function () {
+              // 监听弹窗关闭就刷新表格
+              setTimeout(() => {
+                renderTable();
+              }, 300);
+            },
+          });
         });
-      });
 
-      // 监听表格搜索按钮
-      $("#ID_table_btnSearch").on("click", function () {
-        renderTable();
-      });
+        // 监听表格搜索按钮
+        $("#ID_table_btnSearch").on("click", function () {
+          renderTable();
+        });
 
-      // 监听表格重置按钮
-      $("#ID_table_btnReset").on("click", function () {
+        // 监听表格重置按钮
+        $("#ID_table_btnReset").on("click", function () {
+          $("#ID_searchApp").val("");
+          $("#ID_searchStream").val("");
+          renderTable();
+        });
+
+        // 初始化
         $("#ID_searchApp").val("");
         $("#ID_searchStream").val("");
         renderTable();
       });
-
-      // 初始化
-      $("#ID_searchApp").val("");
-      $("#ID_searchStream").val("");
-      renderTable();
-    });
-  </script>
-</body>
-
+    </script>
+  </body>
 </html>

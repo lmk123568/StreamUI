@@ -1,489 +1,586 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1"
+    />
+    <style>
+      .layui-form-item {
+        margin: 15px 50px 15px 50px;
+      }
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <style>
-    .layui-form-item {
-      margin: 15px 50px 15px 50px;
-    }
+      .layui-form-label {
+        width: 130px;
+        padding-left: 0;
+        padding-right: 0;
+      }
 
-    .layui-form-label {
-      width: 130px;
-      padding-left: 0;
-      padding-right: 0;
-    }
+      .layui-input-block {
+        margin-left: 150px;
+      }
 
-    .layui-input-block {
-      margin-left: 150px;
-    }
+      .layui-form-item .layui-inline {
+        margin-bottom: 0;
+      }
+    </style>
+  </head>
 
-    .layui-form-item .layui-inline {
-      margin-bottom: 0;
-    }
-  </style>
-</head>
+  <body>
+    <div style="padding: 16px 16px 0 16px; width: 50%; margin: auto">
+      <div class="layui-card">
+        <div class="layui-card-header">设置</div>
+        <div class="layui-card-body">
+          <div class="layui-form" id="ID_form">
+            <!-- 1 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">帧级时间戳处理</label>
+              <div class="layui-input-block">
+                <select name="modify_stamp">
+                  <option value="0">用原始时间戳</option>
+                  <option value="1">用接收时的系统时间（有平滑处理）</option>
+                  <option value="2">用相对时间戳（有矫正）</option>
+                </select>
+              </div>
+            </div>
+            <!-- 1 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">音频处理</label>
+              <div class="layui-input-block">
+                <select name="audio_process">
+                  <option value="0">转协议不带音频</option>
+                  <option value="1">转协议带原始音频</option>
+                  <option value="2">转协议只带静音音频</option>
+                </select>
+              </div>
+            </div>
+            <!-- 2 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">RTSP 分发</label>
+              <div class="layui-input-block">
+                <div class="layui-inline" style="margin-right: 20px">
+                  <input
+                    type="checkbox"
+                    name="enable_rtsp"
+                    lay-skin="switch"
+                    lay-text="开启"
+                  />
+                </div>
 
-<body>
-  <div style="padding: 16px 16px 0 16px; width: 50%; margin: auto">
-    <div class="layui-card">
-      <div class="layui-card-header">设置</div>
-      <div class="layui-card-body">
-        <div class="layui-form" id="ID_form">
-          <!-- 1 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">帧级时间戳处理</label>
-            <div class="layui-input-block">
-              <select name="modify_stamp">
-                <option value="0">用原始时间戳</option>
-                <option value="1">用接收时的系统时间（有平滑处理）</option>
-                <option value="2">用相对时间戳（有矫正）</option>
-              </select>
-            </div>
-          </div>
-          <!-- 1 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">音频处理</label>
-            <div class="layui-input-block">
-              <select name="audio_process">
-                <option value="0">转协议不带音频</option>
-                <option value="1">转协议带原始音频</option>
-                <option value="2">转协议只带静音音频</option>
-              </select>
-            </div>
-          </div>
-          <!-- 2 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">RTSP 分发</label>
-            <div class="layui-input-block">
-              <div class="layui-inline" style="margin-right: 20px">
-                <input type="checkbox" name="enable_rtsp" lay-skin="switch" lay-text="开启" />
+                <div class="layui-inline">
+                  <input
+                    type="checkbox"
+                    name="rtsp_demand"
+                    lay-skin="switch"
+                    lay-text="按需生成"
+                  />
+                </div>
               </div>
+            </div>
+            <!-- 8 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">RTP 传输方式</label>
+              <div class="layui-input-block">
+                <select name="rtpTransportType">
+                  <option value="-1">不限制</option>
+                  <option value="0">TCP</option>
+                  <option value="1">UDP</option>
+                  <option value="2">组播 (Multicast)</option>
+                </select>
+                <div class="layui-form-mid layui-word-aux">
+                  拉流输入时，强制客户端使用指定 RTP 传输方式（仅 RTSP
+                  有效），不匹配时返回 461 错误，目前仅支持 FFmpeg 和 VLC
+                </div>
+              </div>
+            </div>
 
-              <div class="layui-inline">
-                <input type="checkbox" name="rtsp_demand" lay-skin="switch" lay-text="按需生成" />
+            <!-- 2 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">RTSP 直接代理模式</label>
+              <div class="layui-input-block">
+                <select name="directProxy_rtsp">
+                  <option value="1">开启</option>
+                  <option value="0">关闭</option>
+                </select>
+                <div class="layui-form-mid layui-word-aux">
+                  支持非标准编码（非 H.264/H.265/AAC）的 RTSP 代理，但可能导致
+                  GOP 缓存失效、开播花屏或 WebRTC 播放失败
+                </div>
               </div>
             </div>
-          </div>
-          <!-- 8 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">RTP 传输方式</label>
-            <div class="layui-input-block">
-              <select name="rtpTransportType">
-                <option value="-1">不限制</option>
-                <option value="0">TCP</option>
-                <option value="1">UDP</option>
-                <option value="2">组播 (Multicast)</option>
-              </select>
-              <div class="layui-form-mid layui-word-aux">
-                拉流输入时，强制客户端使用指定 RTP 传输方式（仅 RTSP
-                有效），不匹配时返回 461 错误，目前仅支持 FFmpeg 和 VLC
+            <!-- H.264 RTP 打包模式 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">H264 RTP 打包模式</label>
+              <div class="layui-input-block">
+                <select name="h264_stap_a">
+                  <option value="1">STAP-A 聚合模式</option>
+                  <option value="0">Single NAL 模式</option>
+                </select>
+                <div class="layui-form-mid layui-word-aux">
+                  STAP-A：WebRTC 兼容好；Single NAL：兼容老旧 RTSP 设备
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- 2 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">RTSP 直接代理模式</label>
-            <div class="layui-input-block">
-              <select name="directProxy_rtsp">
-                <option value="1">开启</option>
-                <option value="0">关闭</option>
-              </select>
-              <div class="layui-form-mid layui-word-aux">
-                支持非标准编码（非 H.264/H.265/AAC）的 RTSP 代理，但可能导致
-                GOP 缓存失效、开播花屏或 WebRTC 播放失败
-              </div>
-            </div>
-          </div>
-          <!-- H.264 RTP 打包模式 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">H264 RTP 打包模式</label>
-            <div class="layui-input-block">
-              <select name="h264_stap_a">
-                <option value="1">STAP-A 聚合模式</option>
-                <option value="0">Single NAL 模式</option>
-              </select>
-              <div class="layui-form-mid layui-word-aux">
-                STAP-A：WebRTC 兼容好；Single NAL：兼容老旧 RTSP 设备
-              </div>
-            </div>
-          </div>
+            <!-- 3 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">RTMP 分发</label>
+              <div class="layui-input-block">
+                <div class="layui-inline" style="margin-right: 20px">
+                  <input
+                    type="checkbox"
+                    name="enable_rtmp"
+                    lay-skin="switch"
+                    lay-text="开启"
+                  />
+                </div>
 
-          <!-- 3 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">RTMP 分发</label>
-            <div class="layui-input-block">
-              <div class="layui-inline" style="margin-right: 20px">
-                <input type="checkbox" name="enable_rtmp" lay-skin="switch" lay-text="开启" />
+                <div class="layui-inline">
+                  <input
+                    type="checkbox"
+                    name="rtmp_demand"
+                    lay-skin="switch"
+                    lay-text="按需生成"
+                  />
+                </div>
               </div>
+            </div>
+            <!-- 1 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">RTMP 直接代理模式</label>
+              <div class="layui-input-block">
+                <select name="directProxy_rtmp">
+                  <option value="1">开启</option>
+                  <option value="0">关闭</option>
+                </select>
+                <div class="layui-form-mid layui-word-aux">
+                  开启后不解析音视频流，兼容非标准编码，但 GOP
+                  缓存、转码等功能将失效
+                </div>
+              </div>
+            </div>
+            <!-- 3. H.265 打包标准选择 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">H265 RTMP 打包标准</label>
+              <div class="layui-input-block">
+                <select name="rtmp_enhanced">
+                  <option value="0">国内拓展标准（默认）</option>
+                  <option value="1">
+                    增强型 RTMP 标准（ISO/IEC 14496-15）
+                  </option>
+                </select>
+                <div class="layui-form-mid layui-word-aux">
+                  用于兼容不同 H.265 推流设备，需与推流端保持一致
+                </div>
+              </div>
+            </div>
+            <!-- 3 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">HLS 分发</label>
+              <div class="layui-input-block">
+                <div class="layui-inline" style="margin-right: 20px">
+                  <input
+                    type="checkbox"
+                    name="enable_hls_ts"
+                    lay-skin="switch"
+                    lay-text="开启 (HLS-mpegts)"
+                  />
+                </div>
+                <div class="layui-inline" style="margin-right: 20px">
+                  <input
+                    type="checkbox"
+                    name="enable_hls_fmp4"
+                    lay-skin="switch"
+                    lay-text="开启 (HLS-fMP4)"
+                  />
+                </div>
+                <div class="layui-inline">
+                  <input
+                    type="checkbox"
+                    name="hls_demand"
+                    lay-skin="switch"
+                    lay-text="按需生成"
+                  />
+                </div>
+              </div>
+            </div>
+            <!-- 1. HLS 切片时长 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">HLS 切片时长 (秒)</label>
+              <div class="layui-input-block">
+                <input
+                  type="number"
+                  name="segDur"
+                  class="layui-input"
+                  min="1"
+                  max="10000"
+                />
+                <div class="layui-form-mid layui-word-aux">
+                  每个 .ts 文件的时长，影响延迟与文件数量
+                </div>
+              </div>
+            </div>
 
-              <div class="layui-inline">
-                <input type="checkbox" name="rtmp_demand" lay-skin="switch" lay-text="按需生成" />
-              </div>
-            </div>
-          </div>
-          <!-- 1 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">RTMP 直接代理模式</label>
-            <div class="layui-input-block">
-              <select name="directProxy_rtmp">
-                <option value="1">开启</option>
-                <option value="0">关闭</option>
-              </select>
-              <div class="layui-form-mid layui-word-aux">
-                开启后不解析音视频流，兼容非标准编码，但 GOP
-                缓存、转码等功能将失效
-              </div>
-            </div>
-          </div>
-          <!-- 3. H.265 打包标准选择 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">H265 RTMP 打包标准</label>
-            <div class="layui-input-block">
-              <select name="rtmp_enhanced">
-                <option value="0">国内拓展标准（默认）</option>
-                <option value="1">
-                  增强型 RTMP 标准（ISO/IEC 14496-15）
-                </option>
-              </select>
-              <div class="layui-form-mid layui-word-aux">
-                用于兼容不同 H.265 推流设备，需与推流端保持一致
-              </div>
-            </div>
-          </div>
-          <!-- 3 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">HLS 分发</label>
-            <div class="layui-input-block">
-              <div class="layui-inline" style="margin-right: 20px">
-                <input type="checkbox" name="enable_hls_ts" lay-skin="switch" lay-text="开启 (HLS-mpegts)" />
-              </div>
-              <div class="layui-inline" style="margin-right: 20px">
-                <input type="checkbox" name="enable_hls_fmp4" lay-skin="switch" lay-text="开启 (HLS-fMP4)" />
-              </div>
-              <div class="layui-inline">
-                <input type="checkbox" name="hls_demand" lay-skin="switch" lay-text="按需生成" />
-              </div>
-            </div>
-          </div>
-          <!-- 1. HLS 切片时长 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">HLS 切片时长 (秒)</label>
-            <div class="layui-input-block">
-              <input type="number" name="segDur" class="layui-input" min="1" max="10000" />
-              <div class="layui-form-mid layui-word-aux">
-                每个 .ts 文件的时长，影响延迟与文件数量
-              </div>
-            </div>
-          </div>
+            <!-- 3 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">HTTP-TS 分发</label>
+              <div class="layui-input-block">
+                <div class="layui-inline" style="margin-right: 20px">
+                  <input
+                    type="checkbox"
+                    name="enable_http_ts"
+                    lay-skin="switch"
+                    lay-text="开启"
+                  />
+                </div>
 
-          <!-- 3 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">HTTP-TS 分发</label>
-            <div class="layui-input-block">
-              <div class="layui-inline" style="margin-right: 20px">
-                <input type="checkbox" name="enable_http_ts" lay-skin="switch" lay-text="开启" />
+                <div class="layui-inline">
+                  <input
+                    type="checkbox"
+                    name="ts_demand"
+                    lay-skin="switch"
+                    lay-text="按需生成"
+                  />
+                </div>
               </div>
+            </div>
+            <!-- 3 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">HTTP-fMP4 分发</label>
+              <div class="layui-input-block">
+                <div class="layui-inline" style="margin-right: 20px">
+                  <input
+                    type="checkbox"
+                    name="enable_http_fmp4"
+                    lay-skin="switch"
+                    lay-text="开启"
+                  />
+                </div>
 
-              <div class="layui-inline">
-                <input type="checkbox" name="ts_demand" lay-skin="switch" lay-text="按需生成" />
+                <div class="layui-inline">
+                  <input
+                    type="checkbox"
+                    name="fmp4_demand"
+                    lay-skin="switch"
+                    lay-text="按需生成"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-          <!-- 3 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">HTTP-fMP4 分发</label>
-            <div class="layui-input-block">
-              <div class="layui-inline" style="margin-right: 20px">
-                <input type="checkbox" name="enable_http_fmp4" lay-skin="switch" lay-text="开启" />
+            <!-- 1 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">断流重连超时</label>
+              <div class="layui-input-block">
+                <input
+                  type="number"
+                  name="continue_push_ms"
+                  placeholder="请输入超时时间（毫秒）"
+                  class="layui-input"
+                  min="0"
+                  max="60000"
+                  step="1000"
+                />
+                <div class="layui-form-mid layui-word-aux">
+                  断流后在此时间内收到推流则视为连续推流，否则视为新推流，单位毫秒，置0则关闭
+                </div>
               </div>
+            </div>
+            <!-- 1 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">平滑发送间隔</label>
+              <div class="layui-input-block">
+                <input
+                  type="number"
+                  name="paced_sender_ms"
+                  placeholder="请输入定时器间隔（毫秒）"
+                  class="layui-input"
+                  min="0"
+                  max="100"
+                  step="1"
+                />
+                <div class="layui-form-mid layui-word-aux">
+                  开启后可以解决一些流发送不平滑导致 zlm
+                  转发也不平滑的问题，单位毫秒，置0则关闭
+                </div>
+              </div>
+            </div>
+            <!-- 2 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">录制文件缓冲大小</label>
+              <div class="layui-input-block">
+                <input
+                  type="number"
+                  name="fileBufSize"
+                  class="layui-input"
+                  min="0"
+                />
+              </div>
+            </div>
 
-              <div class="layui-inline">
-                <input type="checkbox" name="fmp4_demand" lay-skin="switch" lay-text="按需生成" />
+            <!-- 4 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">录制文件 fastStart</label>
+              <div class="layui-input-block">
+                <select name="fastStart">
+                  <option value="0">否</option>
+                  <option value="1">是</option>
+                </select>
               </div>
             </div>
-          </div>
-          <!-- 1 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">断流重连超时</label>
-            <div class="layui-input-block">
-              <input type="number" name="continue_push_ms" placeholder="请输入超时时间（毫秒）" class="layui-input" min="0"
-                max="60000" step="1000" />
-              <div class="layui-form-mid layui-word-aux">
-                断流后在此时间内收到推流则视为连续推流，否则视为新推流，单位毫秒，置0则关闭
-              </div>
-            </div>
-          </div>
-          <!-- 1 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">平滑发送间隔</label>
-            <div class="layui-input-block">
-              <input type="number" name="paced_sender_ms" placeholder="请输入定时器间隔（毫秒）" class="layui-input" min="0"
-                max="100" step="1" />
-              <div class="layui-form-mid layui-word-aux">
-                开启后可以解决一些流发送不平滑导致 zlm
-                转发也不平滑的问题，单位毫秒，置0则关闭
-              </div>
-            </div>
-          </div>
-          <!-- 2 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">录制文件缓冲大小</label>
-            <div class="layui-input-block">
-              <input type="number" name="fileBufSize" class="layui-input" min="0" />
-            </div>
-          </div>
 
-          <!-- 4 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">录制文件 fastStart</label>
-            <div class="layui-input-block">
-              <select name="fastStart">
-                <option value="0">否</option>
-                <option value="1">是</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- 6 -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">录制使用 fMP4 格式</label>
-            <div class="layui-input-block">
-              <select name="enableFmp4">
-                <option value="0">否</option>
-                <option value="1">是</option>
-              </select>
-            </div>
-          </div>
-          <!-- GOP 缓存数量（整数输入） -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">GOP 缓存数量</label>
-            <div class="layui-input-block">
-              <input type="number" name="gop_cache" class="layui-input" min="0" placeholder="0~500" />
-              <div class="layui-form-mid layui-word-aux">
-                缓存最近 N 个 GOP 以实现秒开播放。0=关闭，1=常用，建议不超过
-                3。不使用 startSendRtp/startRecord 时建议设为 0 节省内存。
+            <!-- 6 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">录制使用 fMP4 格式</label>
+              <div class="layui-input-block">
+                <select name="enableFmp4">
+                  <option value="0">否</option>
+                  <option value="1">是</option>
+                </select>
               </div>
             </div>
-          </div>
+            <!-- GOP 缓存数量（整数输入） -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">GOP 缓存数量</label>
+              <div class="layui-input-block">
+                <input
+                  type="number"
+                  name="gop_cache"
+                  class="layui-input"
+                  min="0"
+                  placeholder="0~500"
+                />
+                <div class="layui-form-mid layui-word-aux">
+                  缓存最近 N 个 GOP 以实现秒开播放。0=关闭，1=常用，建议不超过
+                  3。不使用 startSendRtp/startRecord 时建议设为 0 节省内存。
+                </div>
+              </div>
+            </div>
 
-          <!-- G.711 RTP 打包时长（整数输入） -->
-          <div class="layui-form-item">
-            <label class="layui-form-label">G.711 RTP 打包时长</label>
-            <div class="layui-input-block">
-              <input type="number" name="rtp_g711_dur_ms" class="layui-input" min="20" step="20" placeholder="20~180" />
-              <div class="layui-form-mid layui-word-aux">
-                GB28181 规定 G.711 音频每个 RTP
-                包的语音时长（单位：毫秒），范围 20~180ms。建议设置为 20
-                的倍数，系统会自动取整。
+            <!-- G.711 RTP 打包时长（整数输入） -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">G.711 RTP 打包时长</label>
+              <div class="layui-input-block">
+                <input
+                  type="number"
+                  name="rtp_g711_dur_ms"
+                  class="layui-input"
+                  min="20"
+                  step="20"
+                  placeholder="20~180"
+                />
+                <div class="layui-form-mid layui-word-aux">
+                  GB28181 规定 G.711 音频每个 RTP
+                  包的语音时长（单位：毫秒），范围 20~180ms。建议设置为 20
+                  的倍数，系统会自动取整。
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div style="padding: 16px 16px 32px 16px; margin: auto">
-    <div style="display: flex; justify-content: center; align-items: center">
-      <button type="button" class="layui-btn" id="ID_btn_submit">
-        修改配置（重启 docker 生效）
-      </button>
+    <div style="padding: 16px 16px 32px 16px; margin: auto">
+      <div style="display: flex; justify-content: center; align-items: center">
+        <button type="button" class="layui-btn" id="ID_btn_submit">
+          修改配置（重启 StreamUI 生效）
+        </button>
+      </div>
     </div>
-  </div>
 
-  <script>
-    layui.use(["form", "jquery", "layer"], function () {
-      let form = layui.form;
-      let $ = layui.jquery;
-      let layer = layui.layer;
+    <script>
+      layui.use(["form", "jquery", "layer"], function () {
+        let form = layui.form;
+        let $ = layui.jquery;
+        let layer = layui.layer;
 
-      // 1. 从后端获取配置
-      function renderConfig() {
-        $.ajax({
-          url: "/api/server/config",
-          type: "GET",
-          dataType: "json",
-          success: function (res) {
-            if (res.code === 0 && res.data.length > 0) {
-              const config = res.data[0];
-              fillForm(config);
-            } else {
-              layer.msg("⚠️ " + res.msg, {
-                time: 1500,
-                offset: "t",
-                shift: 1,
-              });
-            }
-          },
-        });
-      }
-
-      // 2. 填充表单（映射后端 key → 前端 name）
-      function fillForm(data) {
-        const enable_audio = Number(data["protocol.enable_audio"]);
-        const add_mute_audio = Number(data["protocol.add_mute_audio"]);
-        const audio_process =
-          enable_audio === 0 ? 0 : add_mute_audio === 0 ? 1 : 2;
-
-        const map = {
-          modify_stamp: Number(data["protocol.modify_stamp"]),
-          audio_process: audio_process,
-
-          enable_rtsp: Number(data["protocol.enable_rtsp"]),
-          rtsp_demand: Number(data["protocol.rtsp_demand"]),
-          rtpTransportType: Number(data["rtsp.rtpTransportType"]),
-          directProxy_rtsp: Number(data["rtsp.directProxy"]),
-          h264_stap_a: Number(data["rtp.h264_stap_a"]),
-
-          enable_rtmp: Number(data["protocol.enable_rtmp"]),
-          rtmp_demand: Number(data["protocol.rtmp_demand"]),
-          directProxy_rtmp: Number(data["rtmp.directProxy"]),
-          rtmp_enhanced: Number(data["rtmp.enhanced"]),
-
-          enable_hls_ts: Number(data["protocol.enable_hls"]),
-          enable_hls_fmp4: Number(data["protocol.enable_hls_fmp4"]),
-          hls_demand: Number(data["protocol.hls_demand"]),
-          segDur: Number(data["hls.segDur"]),
-
-          enable_http_ts: Number(data["protocol.enable_ts"]),
-          ts_demand: Number(data["protocol.ts_demand"]),
-          enable_http_fmp4: Number(data["protocol.enable_fmp4"]),
-          fmp4_demand: Number(data["protocol.fmp4_demand"]),
-
-          continue_push_ms: Number(data["protocol.continue_push_ms"]),
-          paced_sender_ms: Number(data["protocol.paced_sender_ms"]),
-
-          fileBufSize: Number(data["record.fileBufSize"]),
-          fastStart: Number(data["record.fastStart"]),
-          enableFmp4: Number(data["record.enableFmp4"]),
-
-          gop_cache: Number(data["rtp_proxy.gop_cache"]),
-          rtp_g711_dur_ms: Number(data["rtp_proxy.rtp_g711_dur_ms"]),
-        };
-
-        console.log(map);
-
-        // 填充
-        for (let [name, value] of Object.entries(map)) {
-          let $elem = $(`#ID_form [name="${name}"]`);
-          if (!$elem.length) continue;
-
-          if ($elem.is("select")) {
-            $elem.val(value);
-          } else if ($elem.is('input[type="checkbox"]')) {
-            $elem.prop("checked", value == 1);
-          } else if ($elem.is('input[type="number"], input[type="text"]')) {
-            $elem.val(value);
-          }
-        }
-        form.render(); // 更新 UI
-      }
-
-      // 3. 提交配置
-      $("#ID_btn_submit").on("click", function () {
-        let formData = {};
-
-        // 收集所有带 name 的表单元素
-        $("#ID_form [name]").each(function () {
-          let $this = $(this);
-          let name = $this.attr("name");
-          let val = $this.val();
-
-          if ($this.is('input[type="checkbox"]')) {
-            val = $this.prop("checked") ? "1" : "0";
-          }
-
-          // 防止重复 name 覆盖
-          if (typeof formData[name] !== "undefined") return;
-
-          formData[name] = val;
-        });
-
-        let enable_audio = "0";
-        let add_mute_audio = "0";
-
-        if (formData["audio_process"] === "0") {
-          enable_audio = "0";
-          add_mute_audio = "1";
-        } else if (formData["audio_process"] === "1") {
-          enable_audio = "1";
-          add_mute_audio = "0";
-        } else if (formData["audio_process"] === "2") {
-          enable_audio = "1";
-          add_mute_audio = "1";
+        // 1. 从后端获取配置
+        function renderConfig() {
+          $.ajax({
+            url: "/api/server/config",
+            type: "GET",
+            dataType: "json",
+            success: function (res) {
+              if (res.code === 0 && res.data.length > 0) {
+                const config = res.data[0];
+                fillForm(config);
+              } else {
+                layer.msg("⚠️ " + res.msg, {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
+                });
+              }
+            },
+          });
         }
 
-        // 映射回后端 key
-        const putData = {
-          "protocol.modify_stamp": String(formData["modify_stamp"]),
-          "protocol.enable_audio": enable_audio,
-          "protocol.add_mute_audio": add_mute_audio,
+        // 2. 填充表单（映射后端 key → 前端 name）
+        function fillForm(data) {
+          const enable_audio = Number(data["protocol.enable_audio"]);
+          const add_mute_audio = Number(data["protocol.add_mute_audio"]);
+          const audio_process =
+            enable_audio === 0 ? 0 : add_mute_audio === 0 ? 1 : 2;
 
-          "protocol.enable_rtsp": String(formData["enable_rtsp"]),
-          "protocol.rtsp_demand": String(formData["rtsp_demand"]),
-          "rtsp.rtpTransportType": String(formData["rtpTransportType"]),
-          "rtsp.directProxy": String(formData["directProxy_rtsp"]),
-          "rtp.h264_stap_a": String(formData["h264_stap_a"]),
+          const map = {
+            modify_stamp: Number(data["protocol.modify_stamp"]),
+            audio_process: audio_process,
 
-          "protocol.enable_rtmp": String(formData["enable_rtmp"]),
-          "protocol.rtmp_demand": String(formData["rtmp_demand"]),
-          "rtmp.directProxy": String(formData["directProxy_rtmp"]),
-          "rtmp.enhanced": String(formData["rtmp_enhanced"]),
+            enable_rtsp: Number(data["protocol.enable_rtsp"]),
+            rtsp_demand: Number(data["protocol.rtsp_demand"]),
+            rtpTransportType: Number(data["rtsp.rtpTransportType"]),
+            directProxy_rtsp: Number(data["rtsp.directProxy"]),
+            h264_stap_a: Number(data["rtp.h264_stap_a"]),
 
-          "protocol.enable_hls": String(formData["enable_hls_ts"]),
-          "protocol.enable_hls_fmp4": String(formData["enable_hls_fmp4"]),
-          "protocol.hls_demand": String(formData["hls_demand"]),
-          "hls.segDur": String(formData["segDur"]),
+            enable_rtmp: Number(data["protocol.enable_rtmp"]),
+            rtmp_demand: Number(data["protocol.rtmp_demand"]),
+            directProxy_rtmp: Number(data["rtmp.directProxy"]),
+            rtmp_enhanced: Number(data["rtmp.enhanced"]),
 
-          "protocol.enable_ts": String(formData["enable_http_ts"]),
-          "protocol.ts_demand": String(formData["ts_demand"]),
-          "protocol.enable_fmp4": String(formData["enable_http_fmp4"]),
-          "protocol.fmp4_demand": String(formData["fmp4_demand"]),
+            enable_hls_ts: Number(data["protocol.enable_hls"]),
+            enable_hls_fmp4: Number(data["protocol.enable_hls_fmp4"]),
+            hls_demand: Number(data["protocol.hls_demand"]),
+            segDur: Number(data["hls.segDur"]),
 
-          "protocol.continue_push_ms": String(formData["continue_push_ms"]),
-          "protocol.paced_sender_ms": String(formData["paced_sender_ms"]),
-          "record.fileBufSize": String(formData["fileBufSize"]),
-          "record.fastStart": String(formData["fastStart"]),
-          "record.enableFmp4": String(formData["enableFmp4"]),
-          "rtp_proxy.gop_cache": String(formData["gop_cache"]),
-          "rtp_proxy.rtp_g711_dur_ms": String(formData["rtp_g711_dur_ms"]),
-        };
+            enable_http_ts: Number(data["protocol.enable_ts"]),
+            ts_demand: Number(data["protocol.ts_demand"]),
+            enable_http_fmp4: Number(data["protocol.enable_fmp4"]),
+            fmp4_demand: Number(data["protocol.fmp4_demand"]),
 
-        console.log(putData);
+            continue_push_ms: Number(data["protocol.continue_push_ms"]),
+            paced_sender_ms: Number(data["protocol.paced_sender_ms"]),
 
-        let queryString = $.param(putData);
+            fileBufSize: Number(data["record.fileBufSize"]),
+            fastStart: Number(data["record.fastStart"]),
+            enableFmp4: Number(data["record.enableFmp4"]),
 
-        // 发送到后端
-        $.ajax({
-          url: `/api/server/config?${queryString}`,
-          type: "PUT",
-          dataType: "json",
-          success: function (res) {
-            if (res.code === 0) {
-              layer.msg(`✅ 修改了 ${res.changed} 个配置项，重启 docker 生效`, {
-                time: 1500,
-                offset: "t",
-                shift: 1,
-              });
-              renderConfig();
-            } else {
-              layer.msg("⚠️ " + res.msg, {
-                time: 1500,
-                offset: "t",
-                shift: 1,
-              });
+            gop_cache: Number(data["rtp_proxy.gop_cache"]),
+            rtp_g711_dur_ms: Number(data["rtp_proxy.rtp_g711_dur_ms"]),
+          };
+
+          console.log(map);
+
+          // 填充
+          for (let [name, value] of Object.entries(map)) {
+            let $elem = $(`#ID_form [name="${name}"]`);
+            if (!$elem.length) continue;
+
+            if ($elem.is("select")) {
+              $elem.val(value);
+            } else if ($elem.is('input[type="checkbox"]')) {
+              $elem.prop("checked", value == 1);
+            } else if ($elem.is('input[type="number"], input[type="text"]')) {
+              $elem.val(value);
             }
-          },
+          }
+          form.render(); // 更新 UI
+        }
+
+        // 3. 提交配置
+        $("#ID_btn_submit").on("click", function () {
+          let formData = {};
+
+          // 收集所有带 name 的表单元素
+          $("#ID_form [name]").each(function () {
+            let $this = $(this);
+            let name = $this.attr("name");
+            let val = $this.val();
+
+            if ($this.is('input[type="checkbox"]')) {
+              val = $this.prop("checked") ? "1" : "0";
+            }
+
+            // 防止重复 name 覆盖
+            if (typeof formData[name] !== "undefined") return;
+
+            formData[name] = val;
+          });
+
+          let enable_audio = "0";
+          let add_mute_audio = "0";
+
+          if (formData["audio_process"] === "0") {
+            enable_audio = "0";
+            add_mute_audio = "1";
+          } else if (formData["audio_process"] === "1") {
+            enable_audio = "1";
+            add_mute_audio = "0";
+          } else if (formData["audio_process"] === "2") {
+            enable_audio = "1";
+            add_mute_audio = "1";
+          }
+
+          // 映射回后端 key
+          const putData = {
+            "protocol.modify_stamp": String(formData["modify_stamp"]),
+            "protocol.enable_audio": enable_audio,
+            "protocol.add_mute_audio": add_mute_audio,
+
+            "protocol.enable_rtsp": String(formData["enable_rtsp"]),
+            "protocol.rtsp_demand": String(formData["rtsp_demand"]),
+            "rtsp.rtpTransportType": String(formData["rtpTransportType"]),
+            "rtsp.directProxy": String(formData["directProxy_rtsp"]),
+            "rtp.h264_stap_a": String(formData["h264_stap_a"]),
+
+            "protocol.enable_rtmp": String(formData["enable_rtmp"]),
+            "protocol.rtmp_demand": String(formData["rtmp_demand"]),
+            "rtmp.directProxy": String(formData["directProxy_rtmp"]),
+            "rtmp.enhanced": String(formData["rtmp_enhanced"]),
+
+            "protocol.enable_hls": String(formData["enable_hls_ts"]),
+            "protocol.enable_hls_fmp4": String(formData["enable_hls_fmp4"]),
+            "protocol.hls_demand": String(formData["hls_demand"]),
+            "hls.segDur": String(formData["segDur"]),
+
+            "protocol.enable_ts": String(formData["enable_http_ts"]),
+            "protocol.ts_demand": String(formData["ts_demand"]),
+            "protocol.enable_fmp4": String(formData["enable_http_fmp4"]),
+            "protocol.fmp4_demand": String(formData["fmp4_demand"]),
+
+            "protocol.continue_push_ms": String(formData["continue_push_ms"]),
+            "protocol.paced_sender_ms": String(formData["paced_sender_ms"]),
+            "record.fileBufSize": String(formData["fileBufSize"]),
+            "record.fastStart": String(formData["fastStart"]),
+            "record.enableFmp4": String(formData["enableFmp4"]),
+            "rtp_proxy.gop_cache": String(formData["gop_cache"]),
+            "rtp_proxy.rtp_g711_dur_ms": String(formData["rtp_g711_dur_ms"]),
+          };
+
+          console.log(putData);
+
+          let queryString = $.param(putData);
+
+          // 发送到后端
+          $.ajax({
+            url: `/api/server/config?${queryString}`,
+            type: "PUT",
+            dataType: "json",
+            success: function (res) {
+              if (res.code === 0) {
+                layer.msg(
+                  `✅ 修改了 ${res.changed} 个配置项，重启 StreamUI 生效`,
+                  {
+                    time: 1500,
+                    offset: "t",
+                    shift: 1,
+                  }
+                );
+                renderConfig();
+              } else {
+                layer.msg("⚠️ " + res.msg, {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
+                });
+              }
+            },
+          });
         });
+
+        // 4. 初始化：加载配置
+        renderConfig();
       });
-
-      // 4. 初始化：加载配置
-      renderConfig();
-    });
-  </script>
-</body>
-
+    </script>
+  </body>
 </html>

@@ -1,129 +1,131 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1"
+    />
+    <style>
+      .player-container {
+        max-width: 1000px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
 
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <style>
-    .player-container {
-      max-width: 1000px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
+      video {
+        width: 1024px;
+        height: 576px;
+        background: #23292e;
+        margin: 20px 0 40px 0;
+      }
 
-    video {
-      width: 1024px;
-      height: 576px;
-      background: #23292e;
-      margin: 20px 0 40px 0;
-    }
+      .timeline-container {
+        position: relative;
+        height: 80px;
+        margin: 30px 0;
+        user-select: none;
+      }
 
-    .timeline-container {
-      position: relative;
-      height: 80px;
-      margin: 30px 0;
-      user-select: none;
-    }
+      .timeline-track {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 30px;
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+      }
 
-    .timeline-track {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 30px;
-      height: 6px;
-      background: #e0e0e0;
-      border-radius: 3px;
-      overflow: hidden;
-    }
+      .timeline-segments {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 30px;
+        height: 6px;
+      }
 
-    .timeline-segments {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 30px;
-      height: 6px;
-    }
+      .segment {
+        position: absolute;
+        height: 100%;
+        background: #4caf50;
+        border-right: 1px solid rgba(255, 255, 255, 0.5);
+      }
 
-    .segment {
-      position: absolute;
-      height: 100%;
-      background: #4caf50;
-      border-right: 1px solid rgba(255, 255, 255, 0.5);
-    }
+      .segment:hover {
+        background: #45a049;
+      }
 
-    .segment:hover {
-      background: #45a049;
-    }
+      .timeline-labels {
+        position: absolute;
+        top: 50px;
+        left: 0;
+        right: 0;
+        font-size: 12px;
+        color: #555;
+        white-space: nowrap;
+        overflow: visible;
+      }
 
-    .timeline-labels {
-      position: absolute;
-      top: 50px;
-      left: 0;
-      right: 0;
-      font-size: 12px;
-      color: #555;
-      white-space: nowrap;
-      overflow: visible;
-    }
+      .label {
+        position: absolute;
+        transform: translateX(-50%);
+      }
 
-    .label {
-      position: absolute;
-      transform: translateX(-50%);
-    }
+      .playhead {
+        position: absolute;
+        top: 20px;
+        width: 2px;
+        height: 40px;
+        background: red;
+        z-index: 10;
+        transform: translateX(-50%);
+        cursor: grab;
+      }
 
-    .playhead {
-      position: absolute;
-      top: 20px;
-      width: 2px;
-      height: 40px;
-      background: red;
-      z-index: 10;
-      transform: translateX(-50%);
-      cursor: grab;
-    }
+      .playhead::after {
+        content: "▶";
+        position: absolute;
+        top: -10px;
+        left: -6px;
+        font-size: 16px;
+        color: red;
+      }
 
-    .playhead::after {
-      content: "▶";
-      position: absolute;
-      top: -10px;
-      left: -6px;
-      font-size: 16px;
-      color: red;
-    }
+      .playhead.dragging {
+        cursor: grabbing;
+      }
 
-    .playhead.dragging {
-      cursor: grabbing;
-    }
+      .current-time {
+        position: absolute;
+        top: 0px;
+        left: 0;
+        font-size: 12px;
+        color: #333;
+        padding: 2px 5px;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid #ddd;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
 
-    .current-time {
-      position: absolute;
-      top: 0px;
-      left: 0;
-      font-size: 12px;
-      color: #333;
-      padding: 2px 5px;
-      background: rgba(255, 255, 255, 0.8);
-      border: 1px solid #ddd;
-      border-radius: 3px;
-    }
-  </style>
-</head>
-
-<body>
-  <div style="padding: 16px">
-    <div class="layui-card">
-      <div class="layui-card-header">本地录像管理</div>
-      <div class="layui-card-body">
-        <table class="layui-hide" id="ID_recorded_video_table"></table>
+  <body>
+    <div style="padding: 16px">
+      <div class="layui-card">
+        <div class="layui-card-header">本地录像管理</div>
+        <div class="layui-card-body">
+          <table class="layui-hide" id="ID_recorded_video_table"></table>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- toolbar 模板 -->
-  <script id="ID_tpl_toolbar" type="text/html">
+    <!-- toolbar 模板 -->
+    <script id="ID_tpl_toolbar" type="text/html">
       <a
         class="layui-btn layui-btn-xs"
         lay-event="play"
@@ -138,8 +140,8 @@
       >
     </script>
 
-  <!-- 录像播放界面模板 -->
-  <script id="ID_tpl_recorded_video_player" type="text/html">
+    <!-- 录像播放界面模板 -->
+    <script id="ID_tpl_recorded_video_player" type="text/html">
       <div class="layui-form" style="margin-top: 16px">
         <div class="layui-form-item">
           <div class="layui-inline">
@@ -175,424 +177,423 @@
       </div>
     </script>
 
-  <script>
-    layui.use(function () {
-      let layer = layui.layer;
-      let table = layui.table;
-      let $ = layui.jquery;
-      let form = layui.form;
+    <script>
+      layui.use(function () {
+        let layer = layui.layer;
+        let table = layui.table;
+        let $ = layui.jquery;
+        let form = layui.form;
 
-      function toNginxPath(path) {
-        return "/record/" + path;
-      }
-
-      // 解析时间字符串为时间戳(ms)
-      function parseTime(timeStr) {
-        return new Date(timeStr).getTime();
-      }
-
-      // 格式化时间戳为 HH:mm:ss
-      function formatTime(ts) {
-        let d = new Date(ts);
-        return d.toTimeString().substr(0, 8);
-      }
-
-      // 渲染播放器
-      function renderVideoDatePlayer(app, stream, date) {
-        // 获取播放器元素
-        let videoPlayer = document.getElementById("ID_player");
-        let timeline = document.getElementById("timeline");
-        let segmentsContainer = document.getElementById("segments");
-        let labelsContainer = document.getElementById("labels");
-        let playhead = document.getElementById("playhead");
-        let currentTimeEl = document.getElementById("currentTime");
-
-        // 清空录像段容器
-        if (segmentsContainer && segmentsContainer.innerHTML) {
-          segmentsContainer.innerHTML = "";
+        function toNginxPath(path) {
+          return "/record/" + path;
         }
 
-        // 清空时间标签容器
-        if (labelsContainer && labelsContainer.innerHTML) {
-          labelsContainer.innerHTML = "";
+        // 解析时间字符串为时间戳(ms)
+        function parseTime(timeStr) {
+          return new Date(timeStr).getTime();
         }
 
-        // 清空播放器
-        videoPlayer.pause();
-        videoPlayer.src = "";
-        videoPlayer.load();
+        // 格式化时间戳为 HH:mm:ss
+        function formatTime(ts) {
+          let d = new Date(ts);
+          return d.toTimeString().substr(0, 8);
+        }
 
-        let loading = layer.load(2, { shade: [0.1, "#fff"] });
+        // 渲染播放器
+        function renderVideoDatePlayer(app, stream, date) {
+          // 获取播放器元素
+          let videoPlayer = document.getElementById("ID_player");
+          let timeline = document.getElementById("timeline");
+          let segmentsContainer = document.getElementById("segments");
+          let labelsContainer = document.getElementById("labels");
+          let playhead = document.getElementById("playhead");
+          let currentTimeEl = document.getElementById("currentTime");
 
-        // 获取某 date 录像列表
-        $.ajax({
-          url: `/api/record/videos?app=${app}&stream=${stream}&date=${date}`,
-          type: "GET",
-          dataType: "json",
-          timeout: 10000,
-          success: function (res) {
-            layer.close(loading);
+          // 清空录像段容器
+          if (segmentsContainer && segmentsContainer.innerHTML) {
+            segmentsContainer.innerHTML = "";
+          }
 
-            let recordings = res.data;
-            recordings.forEach((rec) => {
-              rec.filename = toNginxPath(rec.filename);
-            });
-            // console.log(recordings);
+          // 清空时间标签容器
+          if (labelsContainer && labelsContainer.innerHTML) {
+            labelsContainer.innerHTML = "";
+          }
 
-            // 计算时间轴的宽度
-            let startTime = parseTime(recordings[0].start);
-            let endTime = parseTime(recordings[recordings.length - 1].end);
-            let durationMs = endTime - startTime; // 总时长(ms)
+          // 清空播放器
+          videoPlayer.pause();
+          videoPlayer.src = "";
+          videoPlayer.load();
 
-            // 渲染时间轴上的片段和标签
-            function renderTimeline() {
-              segmentsContainer.innerHTML = "";
-              labelsContainer.innerHTML = "";
+          let loading = layer.load(2, { shade: [0.1, "#fff"] });
 
-              let pxPerMs = timeline.offsetWidth / durationMs;
+          // 获取某流 ID 下某 date 录像列表
+          $.ajax({
+            url: `/api/playback/streamid-record?app=${app}&stream=${stream}&date=${date}`,
+            type: "GET",
+            dataType: "json",
+            timeout: 10000,
+            success: function (res) {
+              layer.close(loading);
 
-              // === 渲染视频片段 ===
+              let recordings = res.data;
               recordings.forEach((rec) => {
-                let start = parseTime(rec.start);
-                let end = parseTime(rec.end);
-                let width = (end - start) * pxPerMs;
-                let left = (start - startTime) * pxPerMs;
-
-                // 添加视频段
-                let seg = document.createElement("div");
-                seg.className = "segment";
-                seg.style.left = `${left}px`;
-                seg.style.width = `${width}px`;
-                seg.dataset.filename = rec.filename;
-                seg.dataset.start = start;
-                seg.dataset.end = end;
-                segmentsContainer.appendChild(seg);
+                rec.filename = toNginxPath(rec.filename);
               });
+              // console.log(recordings);
 
-              // === 渲染整点时间标签（每小时一个）===
-              let current = new Date(startTime);
-              // 向前取整到下一个整点？不，我们从当前小时开始，然后逐小时递增
-              current.setMinutes(0, 0, 0); // 当前小时的 00:00:00
-              let t = current.getTime();
+              // 计算时间轴的宽度
+              let startTime = parseTime(recordings[0].start);
+              let endTime = parseTime(recordings[recordings.length - 1].end);
+              let durationMs = endTime - startTime; // 总时长(ms)
 
-              while (t <= endTime) {
-                let hourStart = t;
-                let left = (hourStart - startTime) * pxPerMs;
+              // 渲染时间轴上的片段和标签
+              function renderTimeline() {
+                segmentsContainer.innerHTML = "";
+                labelsContainer.innerHTML = "";
 
-                // 可选：防止超出容器范围（虽然一般不会）
-                if (left >= 0 && left <= timeline.offsetWidth) {
-                  let label = document.createElement("div");
-                  label.className = "label";
-                  label.style.left = `${left}px`;
+                let pxPerMs = timeline.offsetWidth / durationMs;
 
-                  // 显示 HH:00 或 HH:00:00
-                  let date = new Date(hourStart);
-                  let h = String(date.getHours()).padStart(2, "0");
-                  let m = String(date.getMinutes()).padStart(2, "0");
-                  // label.textContent = `${h}:${m}`;           // "13:00"
-                  label.textContent = `${h}:${m}:00`; // "13:00:00"
+                // === 渲染视频片段 ===
+                recordings.forEach((rec) => {
+                  let start = parseTime(rec.start);
+                  let end = parseTime(rec.end);
+                  let width = (end - start) * pxPerMs;
+                  let left = (start - startTime) * pxPerMs;
 
-                  labelsContainer.appendChild(label);
+                  // 添加视频段
+                  let seg = document.createElement("div");
+                  seg.className = "segment";
+                  seg.style.left = `${left}px`;
+                  seg.style.width = `${width}px`;
+                  seg.dataset.filename = rec.filename;
+                  seg.dataset.start = start;
+                  seg.dataset.end = end;
+                  segmentsContainer.appendChild(seg);
+                });
+
+                // === 渲染整点时间标签（每小时一个）===
+                let current = new Date(startTime);
+                // 向前取整到下一个整点？不，我们从当前小时开始，然后逐小时递增
+                current.setMinutes(0, 0, 0); // 当前小时的 00:00:00
+                let t = current.getTime();
+
+                while (t <= endTime) {
+                  let hourStart = t;
+                  let left = (hourStart - startTime) * pxPerMs;
+
+                  // 可选：防止超出容器范围（虽然一般不会）
+                  if (left >= 0 && left <= timeline.offsetWidth) {
+                    let label = document.createElement("div");
+                    label.className = "label";
+                    label.style.left = `${left}px`;
+
+                    // 显示 HH:00 或 HH:00:00
+                    let date = new Date(hourStart);
+                    let h = String(date.getHours()).padStart(2, "0");
+                    let m = String(date.getMinutes()).padStart(2, "0");
+                    // label.textContent = `${h}:${m}`;           // "13:00"
+                    label.textContent = `${h}:${m}:00`; // "13:00:00"
+
+                    labelsContainer.appendChild(label);
+                  }
+
+                  // 下一个小时
+                  t += 60 * 60 * 1000; // +1 hour in ms
                 }
-
-                // 下一个小时
-                t += 60 * 60 * 1000; // +1 hour in ms
               }
-            }
 
-            // 移动播放头到指定时间（时间戳）
-            function seekTo(timeTs) {
-              // console.log("触发");
+              // 移动播放头到指定时间（时间戳）
+              function seekTo(timeTs) {
+                // console.log("触发");
 
-              let pxPerMs = timeline.offsetWidth / durationMs;
-              let left = (timeTs - startTime) * pxPerMs;
-              playhead.style.left = `${left}px`;
+                let pxPerMs = timeline.offsetWidth / durationMs;
+                let left = (timeTs - startTime) * pxPerMs;
+                playhead.style.left = `${left}px`;
 
-              // 更新显示时间
-              currentTimeEl.style.left = `${left + 10}px`;
-              currentTimeEl.textContent = formatTime(timeTs);
+                // 更新显示时间
+                currentTimeEl.style.left = `${left + 10}px`;
+                currentTimeEl.textContent = formatTime(timeTs);
 
-              // 查找对应视频
-              let rec = recordings.find(
-                (r) =>
-                  timeTs >= parseTime(r.start) && timeTs <= parseTime(r.end)
-              );
+                // 查找对应视频
+                let rec = recordings.find(
+                  (r) =>
+                    timeTs >= parseTime(r.start) && timeTs <= parseTime(r.end)
+                );
 
-              if (rec) {
-                let videoStart = parseTime(rec.start);
-                let seekTimeInVideo = (timeTs - videoStart) / 1000; // 转为秒
+                if (rec) {
+                  let videoStart = parseTime(rec.start);
+                  let seekTimeInVideo = (timeTs - videoStart) / 1000; // 转为秒
 
-                videoPlayer.src = rec.filename; // 假设文件在同目录下
-                videoPlayer.load();
-                videoPlayer.currentTime = seekTimeInVideo;
-                // videoPlayer.pause(); // 不自动播放
+                  videoPlayer.src = rec.filename; // 假设文件在同目录下
+                  videoPlayer.load();
+                  videoPlayer.currentTime = seekTimeInVideo;
+                  // videoPlayer.pause(); // 不自动播放
+                }
               }
-            }
 
-            // 监听视频播放结束事件，自动跳转到下一个视频
-            videoPlayer.addEventListener("ended", () => {
-              // 找到当前视频对应的记录
-              let currentIndex = recordings.findIndex((rec) =>
-                videoPlayer.src.endsWith(rec.filename)
-              );
+              // 监听视频播放结束事件，自动跳转到下一个视频
+              videoPlayer.addEventListener("ended", () => {
+                // 找到当前视频对应的记录
+                let currentIndex = recordings.findIndex((rec) =>
+                  videoPlayer.src.endsWith(rec.filename)
+                );
 
-              if (
-                currentIndex !== -1 &&
-                currentIndex + 1 < recordings.length
-              ) {
-                // 获取下一个视频的信息
-                let nextRecording = recordings[currentIndex + 1];
+                if (
+                  currentIndex !== -1 &&
+                  currentIndex + 1 < recordings.length
+                ) {
+                  // 获取下一个视频的信息
+                  let nextRecording = recordings[currentIndex + 1];
 
-                let nextStart = parseTime(nextRecording.start);
+                  let nextStart = parseTime(nextRecording.start);
 
-                // 跳转至下一个视频的开始时间
-                seekTo(nextStart + 1000);
-              } else {
-                console.log("已经是最后一个视频了");
-              }
-            });
-
-            // 初始化播放头在开始时间
-            playhead.style.left = "0px";
-            currentTimeEl.textContent = formatTime(startTime);
-
-            // 拖动播放头
-            let isDragging = false;
-            playhead.addEventListener("mousedown", (e) => {
-              isDragging = true;
-              playhead.classList.add("dragging");
-              e.preventDefault();
-            });
-            document.addEventListener("mousemove", (e) => {
-              if (!isDragging) return;
-
-              let rect = timeline.getBoundingClientRect();
-              let x = e.clientX - rect.left;
-              if (x < 0) x = 0;
-              if (x > rect.width) x = rect.width;
-
-              let timeTs = startTime + (x / rect.width) * durationMs;
-              seekTo(timeTs);
-            });
-            document.addEventListener("mouseup", () => {
-              if (isDragging) {
-                isDragging = false;
-                playhead.classList.remove("dragging");
-              }
-            });
-
-            // 点击时间轴跳转
-            timeline.addEventListener("click", (e) => {
-              let rect = timeline.getBoundingClientRect();
-              let x = e.clientX - rect.left;
-              let timeTs = startTime + (x / rect.width) * durationMs;
-              seekTo(timeTs);
-            });
-
-            // 监听视频时间更新，同步播放头
-            videoPlayer.addEventListener("timeupdate", () => {
-              if (isDragging) return; // 拖拽时不同步，避免冲突
-
-              let currentSrc = videoPlayer.src;
-              let url = new URL(currentSrc);
-              let filename = url.pathname;
-
-              // 找到当前视频片段 data
-              let rec = recordings.find((r) => r.filename === filename);
-
-              if (!rec) return;
-
-              // 1. 计算当前播放的全局时间戳（毫秒）
-              let videoLocalTime = videoPlayer.currentTime * 1000; // 视频内时间（毫秒）
-              let videoStartTime = parseTime(rec.start); // 视频开始时间（毫秒）
-              let absoluteTime = videoStartTime + videoLocalTime; // 全局播放时间点
-
-              // 2. 计算时间轴上的像素位置
-              let pxPerMs = timeline.offsetWidth / durationMs; // 每毫秒占多少像素
-              let left = (absoluteTime - startTime) * pxPerMs; // 播放头应处的 left 值
-
-              // 3. 更新播放头位置
-              playhead.style.left = `${left}px`;
-
-              // 4. 更新下方显示的当前时间（稍微右偏避免遮挡）
-              currentTimeEl.style.left = `${left + 10}px`;
-              currentTimeEl.textContent = formatTime(absoluteTime);
-
-              // 可选：调试输出
-              // console.log(
-              //   "同步播放头 | 文件:",
-              //   filename,
-              //   "| 时间:",
-              //   new Date(absoluteTime).toLocaleTimeString()
-              // );
-            });
-
-            // 初始化时间轴
-            renderTimeline();
-
-            // 初始化播放头位置
-            seekTo(startTime);
-          },
-        });
-      }
-
-      // 表格渲染
-      function renderTable() {
-        let loading = layer.load(2, { shade: [0.1, "#fff"] });
-        $.ajax({
-          url: `/api/record/videos-list`,
-          type: "GET",
-          success: function (res) {
-            if (res.code === 0) {
-              let data = res.data || [];
-              table.render({
-                elem: "#ID_recorded_video_table",
-                data: data,
-                cols: [
-                  [
-                    {
-                      field: "id",
-                      title: "序号",
-                      align: "center",
-                      width: 80,
-                      templet: function (d) {
-                        return d.LAY_NUM;
-                      },
-                    },
-                    {
-                      field: "app",
-                      title: "应用名",
-                      align: "center",
-                      width: 150,
-                    },
-                    {
-                      field: "stream",
-                      title: "流ID",
-                      align: "center",
-                      width: 200,
-                    },
-                    {
-                      field: "slice_num",
-                      title: "切片数",
-                      align: "center",
-                      width: 150,
-                    },
-                    {
-                      field: "total_storage_gb",
-                      title: "总存储容量",
-                      align: "center",
-                      width: 150,
-                      templet: function (d) {
-                        return `<div>${d.total_storage_gb} GB</div>`;
-                      },
-                    },
-                    // {
-                    //   field: "record_days",
-                    //   title: "录像保留(天)",
-                    //   align: "center",
-                    //   width: 150,
-                    //   templet: function (d) {
-                    //     return `<div>${d.record_days}</div>`;
-                    //   },
-                    // },
-                    {
-                      field: "operate",
-                      title: "操作",
-                      width: 200, // 调整宽度以容纳两个按钮
-                      align: "center",
-                      toolbar: "#ID_tpl_toolbar", // 推荐使用模板（更清晰）
-                    },
-                  ],
-                ],
-                page: true,
-                limits: [8, 16, 32],
-                limit: 8,
-              });
-            }
-          },
-        });
-        layer.close(loading);
-      }
-
-      // 监听表格按钮
-      table.on("tool(ID_recorded_video_table)", function (obj) {
-        let objData = obj.data; // 当前行数据
-        let layEvent = obj.event; // 获取 lay-event 的值 del, play
-
-        form.on("select(video_date)", function (rec) {
-          renderVideoDatePlayer(objData.app, objData.stream, rec.value);
-        });
-
-        //   // 在页面加载时绑定一次即可
-        if (layEvent === "play") {
-          layer.open({
-            type: 1,
-            title: "回看",
-            area: ["100%", "100%"],
-            content: $("#ID_tpl_recorded_video_player").html(),
-            btn: [],
-            success: function (layero, index) {
-              let availableDates = objData.dates || [];
-              if (availableDates.length === 0) return;
-
-              availableDates.sort();
-
-              let $select = $("#ID_video_date");
-              $select.empty();
-
-              availableDates.forEach((date) => {
-                $select.append(`<option value="${date}">${date}</option>`);
+                  // 跳转至下一个视频的开始时间
+                  seekTo(nextStart + 1000);
+                } else {
+                  console.log("已经是最后一个视频了");
+                }
               });
 
-              // 设置默认值
-              $select.val(availableDates[0]);
-              // 触发 change，此时 form.on 已绑定，会响应！
-              $select.trigger("change");
-              // 渲染 layui select
-              form.render("select");
+              // 初始化播放头在开始时间
+              playhead.style.left = "0px";
+              currentTimeEl.textContent = formatTime(startTime);
 
-              renderVideoDatePlayer(
-                objData.app,
-                objData.stream,
-                availableDates[0]
-              );
-            },
-            end: function () {
-              // 关闭弹窗触发回调函数
-              // console.log("弹窗关闭");
+              // 拖动播放头
+              let isDragging = false;
+              playhead.addEventListener("mousedown", (e) => {
+                isDragging = true;
+                playhead.classList.add("dragging");
+                e.preventDefault();
+              });
+              document.addEventListener("mousemove", (e) => {
+                if (!isDragging) return;
+
+                let rect = timeline.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                if (x < 0) x = 0;
+                if (x > rect.width) x = rect.width;
+
+                let timeTs = startTime + (x / rect.width) * durationMs;
+                seekTo(timeTs);
+              });
+              document.addEventListener("mouseup", () => {
+                if (isDragging) {
+                  isDragging = false;
+                  playhead.classList.remove("dragging");
+                }
+              });
+
+              // 点击时间轴跳转
+              timeline.addEventListener("click", (e) => {
+                let rect = timeline.getBoundingClientRect();
+                let x = e.clientX - rect.left;
+                let timeTs = startTime + (x / rect.width) * durationMs;
+                seekTo(timeTs);
+              });
+
+              // 监听视频时间更新，同步播放头
+              videoPlayer.addEventListener("timeupdate", () => {
+                if (isDragging) return; // 拖拽时不同步，避免冲突
+
+                let currentSrc = videoPlayer.src;
+                let url = new URL(currentSrc);
+                let filename = url.pathname;
+
+                // 找到当前视频片段 data
+                let rec = recordings.find((r) => r.filename === filename);
+
+                if (!rec) return;
+
+                // 1. 计算当前播放的全局时间戳（毫秒）
+                let videoLocalTime = videoPlayer.currentTime * 1000; // 视频内时间（毫秒）
+                let videoStartTime = parseTime(rec.start); // 视频开始时间（毫秒）
+                let absoluteTime = videoStartTime + videoLocalTime; // 全局播放时间点
+
+                // 2. 计算时间轴上的像素位置
+                let pxPerMs = timeline.offsetWidth / durationMs; // 每毫秒占多少像素
+                let left = (absoluteTime - startTime) * pxPerMs; // 播放头应处的 left 值
+
+                // 3. 更新播放头位置
+                playhead.style.left = `${left}px`;
+
+                // 4. 更新下方显示的当前时间（稍微右偏避免遮挡）
+                currentTimeEl.style.left = `${left + 10}px`;
+                currentTimeEl.textContent = formatTime(absoluteTime);
+
+                // 可选：调试输出
+                // console.log(
+                //   "同步播放头 | 文件:",
+                //   filename,
+                //   "| 时间:",
+                //   new Date(absoluteTime).toLocaleTimeString()
+                // );
+              });
+
+              // 初始化时间轴
+              renderTimeline();
+
+              // 初始化播放头位置
+              seekTo(startTime);
             },
           });
-        } else if (layEvent === "del") {
-          // 删除确认
-          layer.confirm(
-            `确定要删除录像<span style = "margin-bottom: 6px; padding: 4px; background: #f7f7f7; border-radius: 4px;">${objData.app}/${objData.stream}</span>吗？`,
-            { title: "提示" },
-            function (index) {
-              $.ajax({
-                url: `/api/record/videos?app=${objData.app}&stream=${objData.stream}`,
-                type: "DELETE",
-                dataType: "json",
-                timeout: 10000,
-                success: function (res) {
-                  if (res.code === 0) {
-                    layer.msg("✅ 删除成功", {
-                      time: 1500,
-                      offset: "t",
-                      shift: 1,
-                    });
-                    renderTable();
-                  }
-                },
-              });
-              layer.close(index);
-            }
-          );
         }
+
+        // 表格渲染
+        function renderTable() {
+          let loading = layer.load(2, { shade: [0.1, "#fff"] });
+          $.ajax({
+            url: `/api/playback/streamid-record-list`,
+            type: "GET",
+            success: function (res) {
+              if (res.code === 0) {
+                let data = res.data || [];
+                table.render({
+                  elem: "#ID_recorded_video_table",
+                  data: data,
+                  cols: [
+                    [
+                      {
+                        field: "id",
+                        title: "序号",
+                        align: "center",
+                        width: 80,
+                        templet: function (d) {
+                          return d.LAY_NUM;
+                        },
+                      },
+                      {
+                        field: "app",
+                        title: "应用名",
+                        align: "center",
+                        width: 150,
+                      },
+                      {
+                        field: "stream",
+                        title: "流ID",
+                        align: "center",
+                        width: 200,
+                      },
+                      {
+                        field: "slice_num",
+                        title: "切片数",
+                        align: "center",
+                        width: 150,
+                      },
+                      {
+                        field: "total_storage_gb",
+                        title: "总存储容量",
+                        align: "center",
+                        width: 150,
+                        templet: function (d) {
+                          return `<div>${d.total_storage_gb} GB</div>`;
+                        },
+                      },
+                      // {
+                      //   field: "record_days",
+                      //   title: "录像保留(天)",
+                      //   align: "center",
+                      //   width: 150,
+                      //   templet: function (d) {
+                      //     return `<div>${d.record_days}</div>`;
+                      //   },
+                      // },
+                      {
+                        field: "operate",
+                        title: "操作",
+                        width: 200, // 调整宽度以容纳两个按钮
+                        align: "center",
+                        toolbar: "#ID_tpl_toolbar", // 推荐使用模板（更清晰）
+                      },
+                    ],
+                  ],
+                  page: true,
+                  limits: [8, 16, 32],
+                  limit: 8,
+                });
+              }
+            },
+          });
+          layer.close(loading);
+        }
+
+        // 监听表格按钮
+        table.on("tool(ID_recorded_video_table)", function (obj) {
+          let objData = obj.data; // 当前行数据
+          let layEvent = obj.event; // 获取 lay-event 的值 del, play
+
+          form.on("select(video_date)", function (rec) {
+            renderVideoDatePlayer(objData.app, objData.stream, rec.value);
+          });
+
+          //   // 在页面加载时绑定一次即可
+          if (layEvent === "play") {
+            layer.open({
+              type: 1,
+              title: "回看",
+              area: ["100%", "100%"],
+              content: $("#ID_tpl_recorded_video_player").html(),
+              btn: [],
+              success: function (layero, index) {
+                let availableDates = objData.dates || [];
+                if (availableDates.length === 0) return;
+
+                availableDates.sort();
+
+                let $select = $("#ID_video_date");
+                $select.empty();
+
+                availableDates.forEach((date) => {
+                  $select.append(`<option value="${date}">${date}</option>`);
+                });
+
+                // 设置默认值
+                $select.val(availableDates[0]);
+                // 触发 change，此时 form.on 已绑定，会响应！
+                $select.trigger("change");
+                // 渲染 layui select
+                form.render("select");
+
+                renderVideoDatePlayer(
+                  objData.app,
+                  objData.stream,
+                  availableDates[0]
+                );
+              },
+              end: function () {
+                // 关闭弹窗触发回调函数
+                // console.log("弹窗关闭");
+              },
+            });
+          } else if (layEvent === "del") {
+            // 删除确认
+            layer.confirm(
+              `确定要删除录像<span style = "margin-bottom: 6px; padding: 4px; background: #f7f7f7; border-radius: 4px;">${objData.app}/${objData.stream}</span>吗？`,
+              { title: "提示" },
+              function (index) {
+                $.ajax({
+                  url: `/api/playback/streamid-record?app=${objData.app}&stream=${objData.stream}`,
+                  type: "DELETE",
+                  dataType: "json",
+                  timeout: 10000,
+                  success: function (res) {
+                    if (res.code === 0) {
+                      layer.msg("✅ 删除成功", {
+                        time: 1500,
+                        offset: "t",
+                        shift: 1,
+                      });
+                      renderTable();
+                    }
+                  },
+                });
+                layer.close(index);
+              }
+            );
+          }
+        });
+
+        renderTable();
       });
-
-      renderTable();
-    });
-  </script>
-</body>
-
+    </script>
+  </body>
 </html>

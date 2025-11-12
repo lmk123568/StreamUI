@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1"
+    />
+    <style>
+      .layui-tree-iconClick .layui-icon-file::before {
+        content: "\e6ed" !important;
+        /* layui-icon-video 的 Unicode */
+        color: #23292e;
+        /* 可选：设置颜色 */
+        font-size: 16px;
+        /* 可选：调整大小 */
+        margin-right: 0;
+        /* 可选：微调间距 */
+      }
+
+      #ID_videowall_container.layout-1 {
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+      }
+
+      #ID_videowall_container.layout-4 {
+        grid-template-rows: 1fr 1fr;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      #ID_videowall_container.layout-9 {
+        grid-template-rows: 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      #ID_videowall_container.layout-16 {
+        grid-template-rows: 1fr 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+      }
+
+      .video-cell {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background-color: #2f363c;
+        overflow: hidden;
+      }
+
+      .video-cell video {
+        width: 100%;
+        height: 100%;
+        background-color: #2f363c;
+        object-fit: cover;
+        border: 1px solid #e7e7e7;
+        box-sizing: border-box;
+      }
+
+      .video-cell .video-status {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        display: none;
+        align-items: center;
+        color: #eeeeee;
+        font-weight: 500;
+        font-size: 18px;
+      }
+
+      .video-cell .video-btns {
+        position: absolute;
+        top: 10px;
+        /* 距离顶部 10px */
+        right: 10px;
+        /* 距离右侧 10px */
+        opacity: 0;
+        transition: opacity 0.3s;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        /* 防止点击穿透 */
+        pointer-events: auto;
+      }
+
+      .video-cell:hover .video-btns {
+        opacity: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- 控制按钮组 -->
+    <div
+      style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 120px;
+      "
+    >
+      <div class="layui-btn-group">
+        <button class="layui-btn" id="ID_single">单屏</button>
+        <button class="layui-btn" id="ID_quad">四分屏</button>
+        <button class="layui-btn" id="ID_nine">九分屏</button>
+        <button class="layui-btn" id="ID_fullscreen">
+          <i class="layui-icon layui-icon-screen-full"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 视频墙 -->
+    <div style="display: flex; justify-content: center; margin: 0">
+      <div
+        id="ID_videowall_container"
+        style="width: 960px; height: 540px; display: grid"
+      ></div>
+    </div>
+
+    <!-- 流ID树 -->
+    <script id="ID_tpl_layer" type="text/html">
+      <div id="ID_streamid_tree" style="margin: 12px;"></div>
+    </script>
+
+    <script>
+      layui.use(function () {
+        let layer = layui.layer;
+        let tree = layui.tree;
+        let $ = layui.jquery;
+
+        let nowVideoCells = [];
+
+        // 屏幕单元抽象
+        function VideoCell(container, index) {
+          this.container = container; //  挂载到 ID_videowall_container
+
+          this.index = index; // 分屏索引
+
+          this.element = null;
+          this.player = null; // WebRTC 连接实例
+
+          this.init();
+        }
+
+        VideoCell.prototype.init = function () {
+          // 创建 DOM 元素
+          this.element = document.createElement("div");
+          this.element.className = "video-cell";
+          this.element.innerHTML = `<video autoplay muted></video>
+                                      <div class="video-status"></div>
+                                      <div class="video-btns">
+                                        <button class="layui-btn config-btn layui-btn-sm" style="background-color: #16baaa; margin: 0" data-index="${this.index}">配置</button>
+                                        <button class="layui-btn reset-btn layui-btn-sm" style="background-color: #ff5722; margin: 0" data-index="${this.index}">重置</button>
+                                      </div>`;
+
+          // 将创建的 DOM 添加到父容器
+          this.container.appendChild(this.element);
+
+          this.bindEvents();
+        };
+
+        VideoCell.prototype.bindEvents = function () {
+          // 配置按钮: 打开树形选择弹层
+          let configBtn = this.element.querySelector(".config-btn");
+          configBtn.addEventListener("click", () => this.openLayer());
+          // 重置按钮: 关闭 webrtc 连接并停止播放
+          let resetBtn = this.element.querySelector(".reset-btn");
+          resetBtn.addEventListener("click", () => this.stopPlay());
+
+          // 播放状态
+          let video = this.element.querySelector("video");
+          let statusEl = this.element.querySelector(".video-status");
+
+          // 显示 Loading...
+          function showLoading() {
+            statusEl.textContent = "Loading...";
+            statusEl.style.display = "flex";
+          }
+
+          // 隐藏状态
+          function hideStatus() {
+            statusEl.style.display = "none";
+          }
+
+          // 播放开始加载时，显示 loading
+          video.addEventListener("loadstart", showLoading);
+          video.addEventListener("waiting", showLoading);
+          // 真正开始播放，隐藏状态
+          video.addEventListener("playing", hideStatus);
+          video.addEventListener("canplay", hideStatus);
+        };
+
+        VideoCell.prototype.openLayer = function () {
+          let self = this;
+
+          layer.open({
+            type: 1,
+            title: "流ID树（RTSP）",
+            area: ["300px", "324px"],
+            content: $("#ID_tpl_layer").html(),
+            success: function (layero, index) {
+              $.ajax({
+                url: "/api/stream/streamid-list?schema=rtsp",
+                method: "GET",
+                success: function (res) {
+                  if (res.code === 0) {
+                    function toTreeData(data) {
+                      const map = new Map();
+
+                      data.forEach((item) => {
+                        const app = item.app;
+                        const stream = item.stream;
+
+                        const info = { app, stream };
+
+                        if (!map.has(app)) {
+                          map.set(app, {
+                            title: app,
+                            children: [],
+                          });
+                        }
+
+                        const appNode = map.get(app);
+
+                        appNode.children.push({
+                          title: stream,
+                          channelInfo: info,
+                        });
+                      });
+
+                      return Array.from(map.values());
+                    }
+
+                    let treeData = toTreeData(res.data);
+                    console.log(treeData);
+
+                    // 渲染树
+                    tree.render({
+                      elem: "#ID_streamid_tree",
+                      data: treeData,
+                      click: function (obj) {
+                        if (obj.data.channelInfo) {
+                          // console.log(`播放 ${obj.data.channelInfo.app} 的 ${obj.data.channelInfo.stream} 流`);
+
+                          self.stopPlay();
+                          self.player = new ZLMRTCClient.Endpoint({
+                            element: self.element.querySelector("video"),
+                            debug: true,
+                            zlmsdpUrl: `/index/api/webrtc?app=${obj.data.channelInfo.app}&stream=${obj.data.channelInfo.stream}&type=play`,
+                            recvOnly: true,
+                            videoEnable: true, // 启用视频
+                            audioEnable: false, // 启用音频
+                            simulcast: false, // 启用多流编码
+                            usedatachannel: false,
+                          });
+
+                          self.player.on(
+                            ZLMRTCClient.Events.WEBRTC_ON_REMOTE_STREAMS,
+                            (stream) => {
+                              layer.msg("✅ WebRTC 播放成功", {
+                                time: 1500,
+                                offset: "t",
+                                shift: 1,
+                              });
+                            }
+                          );
+                          self.player.on(
+                            ZLMRTCClient.Events
+                              .WEBRTC_OFFER_ANWSER_EXCHANGE_FAILED,
+                            (e) => {
+                              // layer.msg("❌ OFFER ANWSER 交换失败", {
+                              //     time: 1500,
+                              //     offset: "t",
+                              //     shift: 1,
+                              // });
+                              console.log("❌ OFFER ANWSER 交换失败", e);
+                              self.player.close();
+                              self.player = null;
+                              self.video.srcObject = null;
+                              self.video.load();
+                            }
+                          );
+
+                          self.player.on(
+                            ZLMRTCClient.Events.WEBRTC_ICE_CANDIDATE_ERROR,
+                            (e) => {
+                              console.log("❌ ICE 错误", e);
+                            }
+                          );
+                          self.player.on(
+                            ZLMRTCClient.Events
+                              .WEBRTC_ON_CONNECTION_STATE_CHANGE,
+                            (state) => {
+                              console.log("🔗 RTC 状态:", state);
+                            }
+                          );
+
+                          layer.close(index);
+                        }
+                      },
+                    });
+                  }
+                },
+              });
+            },
+          });
+        };
+
+        VideoCell.prototype.stopPlay = function () {
+          if (this.player) {
+            this.player.close();
+            this.player = null;
+          }
+          let video = this.element.querySelector("video");
+          if (video) {
+            video.srcObject = null;
+            video.load();
+          }
+          console.log(`[屏幕${this.index}] 播放已停止`);
+        };
+
+        window.destroyVideoCells = function () {
+          if (nowVideoCells.length > 0) {
+            nowVideoCells.forEach((cell) => {
+              // 停止播放
+              cell.stopPlay();
+              // 移除 DOM 元素
+              if (cell.element && cell.element.parentNode) {
+                cell.element.parentNode.removeChild(cell.element);
+              }
+            });
+          }
+          nowVideoCells = [];
+        };
+
+        function setLayout(num) {
+          // 停止播放并清空现有屏幕
+          if (nowVideoCells.length > 0) {
+            nowVideoCells.forEach((cell) => {
+              // 停止播放
+              cell.stopPlay();
+              // 移除 DOM 元素
+              if (cell.element && cell.element.parentNode) {
+                cell.element.parentNode.removeChild(cell.element);
+              }
+            });
+          }
+          nowVideoCells = [];
+
+          let container = document.getElementById("ID_videowall_container");
+          // 设置布局：移除旧 class，添加新 class
+          container.className = ""; // 清空 class
+          container.classList.add(`layout-${num}`);
+
+          // 创建屏幕实例
+          for (let i = 0; i < num; i++) {
+            nowVideoCells.push(new VideoCell(container, i));
+          }
+        }
+
+        // 监听全屏状态变化
+        document.addEventListener("fullscreenchange", () => {
+          let container = document.getElementById("ID_videowall_container");
+          let btns = container?.querySelectorAll(".video-btns");
+
+          if (!container || !btns) return;
+
+          if (document.fullscreenElement === container) {
+            // container 正在全屏 → 隐藏按钮
+            btns.forEach((btn) => {
+              btn.style.display = "none";
+            });
+          } else {
+            // 不是全屏 或 其他元素全屏 → 显示按钮
+            btns.forEach((btn) => {
+              btn.style.display = "flex"; // 恢复默认 display
+            });
+          }
+        });
+
+        function fullscreen(elem) {
+          if (!elem) {
+            console.error("元素未找到");
+            return;
+          }
+
+          if (!document.fullscreenElement) {
+            // 进入全屏
+            elem.requestFullscreen().catch((err) => {
+              console.error("全屏失败:", err);
+            });
+          } else {
+            // 退出全屏
+            document.exitFullscreen();
+          }
+        }
+
+        // 绑定按钮事件
+        document
+          .getElementById("ID_single")
+          .addEventListener("click", () => setLayout(1));
+        document
+          .getElementById("ID_quad")
+          .addEventListener("click", () => setLayout(4));
+        document
+          .getElementById("ID_nine")
+          .addEventListener("click", () => setLayout(9));
+        document
+          .getElementById("ID_fullscreen")
+          .addEventListener("click", () =>
+            fullscreen(document.getElementById("ID_videowall_container"))
+          );
+
+        // 默认布局
+        setLayout(4);
+      });
+    </script>
+  </body>
+</html>
