@@ -10,6 +10,6 @@ RUN \
     nginx \
     ffmpeg && \
     pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple \
-    fastapi uvicorn apscheduler httpx psutil && \
+    fastapi uvicorn apscheduler httpx psutil zeep && \
     rm -rf /var/lib/apt/lists/* && \
     apt clean

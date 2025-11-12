@@ -3,14 +3,16 @@ services:
     build:
       context: ./
       dockerfile: ./Dockerfile
-    image: litenvr-web
-    container_name: litenvr-web-server
+    image: streamui-web
+    container_name: streamui-web-server
     command: "bash start.sh"
     network_mode: "host"
     volumes:
       - ../:/workspace
       - /opt/media/bin/www/record:/opt/media/bin/www/record
       - /opt/media/conf:/opt/media/conf
+      - /etc/localtime:/etc/localtime:ro 
+      - /etc/timezone:/etc/timezone:ro 
     restart: unless-stopped
     depends_on:
       - zlm-server
