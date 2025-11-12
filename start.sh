@@ -2,9 +2,6 @@
 
 echo "🚀 Starting StreamUI ..."
 
-# fix zlm config
-
-
 # start nginx
 nginx -p /workspace/frontend -c /workspace/frontend/nginx.conf -g 'daemon off;' &
 
