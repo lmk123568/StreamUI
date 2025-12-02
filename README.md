@@ -62,9 +62,13 @@ docker compose restart
 ## Tips
 
 After the first startup, it's recommended to adjust the settings according to your business needs before restarting for regular use:
+
 - Consider enabling on-demand forwarding. The advantage is that it saves bandwidth, but the downside is that the first viewer will need to wait for the forwarding stream to start.
+
 - Consider disabling protocols you don't need to forward. For example, if you don't need to distribute RTMP streams, turn off RTMP forwarding.
+
 - Consider enabling "faststart." This allows faster seeking when playing videos, but it uses a bit more storage space during recording.
+
 - Consider increasing the GOP cache size. This makes playback smoother and allows longer video lookback for recorded events, but it also uses more memory.
 
 首次启动后，建议先根据业务需要修改配置再重启使用
