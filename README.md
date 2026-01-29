@@ -7,10 +7,13 @@
 
 🚀 A minimal and lightweight video streaming management platform
 
+>   StreamUI, Stream is derived from the [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit) streaming concept, and UI is derived from [Layui](https://github.com/layui/layui). The overall design uses blue-green (#16baaa) as the main color, adhering to the philosophy of "simplicity, ease of use, and extensibility". It constantly weighs and balances code complexity and functionality, and persistently pursues minimalist beauty.
+
+### 概述
+
 一个极简轻量的视频流媒体管理平台
 
 > StreamUI 中 Stream 取自 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit) 流概念，UI 取自 [Layui](https://github.com/layui/layui)。整体设计以蓝绿色（`#16baaa`）为主色调，秉持 “简洁、易用、可扩展” 的理念，在代码复杂度与功能实现之间不断权衡取舍，执着追求极简之美。
-
 
 ### Supported Features
 
@@ -27,7 +30,7 @@
 - 🚧 GB28181 ingest and cascading support (coming soon...)
 
 
-支持功能
+### 支持功能
 
 - 支持 RTSP/RTMP/HLS/WebRTC/RTP/GB28181 等主流协议的拉流推流接入
 
@@ -59,6 +62,28 @@ If you change the settings and want the changes to take effect, just restart the
 ```bash
 docker compose restart
 ```
+
+### 快速开始
+
+此项目推荐使用Docker Compose部署。
+
+```shell
+cd ./docker
+docker compose up -d # 如果你使用的是旧版本Docker，请使用`docker-compose up -d`
+```
+
+运行后，打开浏览器并转到`http://{你的服务器IP}:10800`登录。
+
+默认密码为`streamui`，你可以在login.html中更改它。
+
+如果你更改设置并希望更改生效，只需使用以下命令重新启动服务：
+
+```shell
+docker compose restart
+```
+
+
+
 ### Tips
 
 After the first startup, it's recommended to adjust the settings according to your business needs before restarting for regular use:
@@ -70,6 +95,8 @@ After the first startup, it's recommended to adjust the settings according to yo
 - Consider enabling "faststart." This allows faster seeking when playing videos, but it uses a bit more storage space during recording.
 
 - Consider increasing the GOP cache size. This makes playback smoother and allows longer video lookback for recorded events, but it also uses more memory.
+
+### 提示
 
 首次启动后，建议先根据业务需要修改配置再重启使用
 
