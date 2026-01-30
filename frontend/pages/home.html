@@ -53,30 +53,38 @@
 
         window.isPolling = true; // 进入页面启动轮询
 
-        let chartStatistic = echarts.init(
-          document.getElementById("ID_chart_statistic")
-        );
-        let chartWorkThreadsLoad = echarts.init(
-          document.getElementById("ID_chart_workthreadsload")
-        );
-        let chartThreadsLoad = echarts.init(
-          document.getElementById("ID_chart_threadsload")
-        );
+        let chartStatistic = echarts.init(document.getElementById("ID_chart_statistic"));
+        let chartWorkThreadsLoad = echarts.init(document.getElementById("ID_chart_workthreadsload"));
+        let chartThreadsLoad = echarts.init(document.getElementById("ID_chart_threadsload"));
         let chartCpu = echarts.init(document.getElementById("ID_chart_cpu"));
-        let chartMemory = echarts.init(
-          document.getElementById("ID_chart_memory")
-        );
+        let chartMemory = echarts.init(document.getElementById("ID_chart_memory"));
         let chartDisk = echarts.init(document.getElementById("ID_chart_disk"));
-        let chartNetwork = echarts.init(
-          document.getElementById("ID_chart_network")
-        );
+        let chartNetwork = echarts.init(document.getElementById("ID_chart_network"));
+
+        // 防抖函数
+        function debounce(func, wait) {
+          let timeout;
+          return function executedFunction(...args) {
+            const later = () => {
+              clearTimeout(timeout);
+              func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+          };
+        }
+
+        // 优化：减少轮询频率，从3秒改为5秒
+        const POLLING_INTERVAL = 5000;
 
         function renderStatisticChart() {
+          if (!window.isPolling) return;
+          
           $.ajax({
             url: "/api/perf/statistic",
             type: "GET",
             dataType: "json",
-            timeout: 10000,
+            timeout: 5000,
             success: function (res) {
               if (res.code === 0) {
                 chartStatistic.setOption({
@@ -103,17 +111,21 @@
               }
             },
             complete: function () {
-              // 无论成功或失败，都等待 3 秒后再次请求
-              statisticTimer = setTimeout(renderStatisticChart, 3000);
+              if (window.isPolling) {
+                statisticTimer = setTimeout(renderStatisticChart, POLLING_INTERVAL);
+              }
             },
           });
         }
+
         function renderWorkThreadsLoadChart() {
+          if (!window.isPolling) return;
+          
           $.ajax({
             url: "/api/perf/work-threads-load",
             type: "GET",
             dataType: "json",
-            timeout: 10000,
+            timeout: 5000,
             success: function (res) {
               if (res.code === 0) {
                 let delays = [];
@@ -172,19 +184,21 @@
               }
             },
             complete: function () {
-              workThreadsLoadTimer = setTimeout(
-                renderWorkThreadsLoadChart,
-                3000
-              );
+              if (window.isPolling) {
+                workThreadsLoadTimer = setTimeout(renderWorkThreadsLoadChart, POLLING_INTERVAL);
+              }
             },
           });
         }
+
         function renderThreadsLoadChart() {
+          if (!window.isPolling) return;
+          
           $.ajax({
             url: "/api/perf/threads-load",
             type: "GET",
             dataType: "json",
-            timeout: 10000,
+            timeout: 5000,
             success: function (res) {
               if (res.code === 0) {
                 let delays = [];
@@ -241,17 +255,21 @@
               }
             },
             complete: function () {
-              threadsLoadTimer = setTimeout(renderThreadsLoadChart, 3000);
+              if (window.isPolling) {
+                threadsLoadTimer = setTimeout(renderThreadsLoadChart, POLLING_INTERVAL);
+              }
             },
           });
         }
 
         function renderHostStatsChart() {
+          if (!window.isPolling) return;
+          
           $.ajax({
             url: "/api/perf/host-stats",
             type: "GET",
             dataType: "json",
-            timeout: 10000,
+            timeout: 5000,
             success: function (res) {
               if (res.code === 0) {
                 const currentData = res.data;
@@ -259,8 +277,8 @@
                 // 把当前数据加入前端维护的历史
                 window.historyData.push(currentData);
 
-                // 只保留最近 5 条
-                if (window.historyData.length > 5) {
+                // 只保留最近 10 条，增加数据点以获得更平滑的图表
+                if (window.historyData.length > 10) {
                   window.historyData.shift(); // 删除最老的一条
                 }
 
@@ -280,7 +298,7 @@
                   },
                   tooltip: {
                     trigger: "axis",
-                    formatter: "{b}: {c}%", // 统一格式：时间: 数值%
+                    formatter: "{b}: {c}%",
                   },
                   legend: {
                     data: ["CPU"],
@@ -292,15 +310,12 @@
                     type: "category",
                     boundaryGap: false,
                     data: times,
-                    axisLabel: {
-                      rotate: 45, // 标签倾斜，避免重叠
-                      fontSize: 10, // 字号统一
-                    },
+                    axisLabel: { rotate: 45, fontSize: 10 },
                   },
                   yAxis: {
                     type: "value",
                     axisLabel: {
-                      formatter: "{value}%", // 显示百分比
+                      formatter: "{value}%",
                     },
                     min: 0,
                     max: 100,
@@ -328,10 +343,6 @@
                 // ----------------------------
                 // 2. 内存使用
                 // ----------------------------
-
-                // let memUsed = parseFloat(latest.memory.used);
-                // let memTotal = parseFloat(latest.memory.total);
-
                 chartMemory.setOption({
                   title: {
                     text: "内存使用",
@@ -340,7 +351,7 @@
                   },
                   tooltip: {
                     trigger: "axis",
-                    formatter: "{b}: {c} GB", // 显示格式为 时间: 使用量 GB
+                    formatter: "{b}: {c} GB",
                   },
                   legend: {
                     data: ["已用内存"],
@@ -350,10 +361,10 @@
                   },
                   xAxis: {
                     type: "category",
-                    boundaryGap: false, // 让线条贴近边缘
-                    data: dataList.map((item) => item.time), // 假设 dataList 包含所有历史数据点
+                    boundaryGap: false,
+                    data: dataList.map((item) => item.time),
                     axisLabel: {
-                      rotate: 45, // 标签倾斜显示，避免重叠
+                      rotate: 45,
                       fontSize: 10,
                     },
                   },
@@ -362,20 +373,18 @@
                     axisLabel: {
                       formatter: "{value} GB",
                     },
-                    max: parseFloat(currentData.memory.total), // 设置 y 轴的最大值为总内存
+                    max: parseFloat(currentData.memory.total),
                   },
                   series: [
                     {
                       name: "已用内存",
                       type: "line",
-                      data: dataList.map((item) =>
-                        parseFloat(item.memory.used)
-                      ), // 已用内存数据
+                      data: dataList.map((item) => parseFloat(item.memory.used)),
                       lineStyle: {
-                        color: "#5470c6", // 线条颜色
+                        color: "#5470c6",
                       },
                       itemStyle: {
-                        color: "#5470c6", // 折点颜色
+                        color: "#5470c6",
                       },
                       areaStyle: {},
                     },
@@ -387,11 +396,10 @@
                 // ----------------------------
                 let diskUsed = parseFloat(currentData.disk.used);
                 let diskTotal = parseFloat(currentData.disk.total);
-                let diskFree = (diskTotal - diskUsed).toFixed(1);
+                let diskFree = diskTotal - diskUsed;
 
-                // 保留原始浮点数用于计算，只在显示时 toFixed
                 let diskUsedStr = diskUsed.toFixed(1);
-                let diskFreeStr = parseFloat(diskFree).toFixed(1);
+                let diskFreeStr = diskFree.toFixed(1);
 
                 chartDisk.setOption({
                   title: {
@@ -403,7 +411,6 @@
                     formatter: "{b}: {c} GB",
                   },
                   legend: {
-                    // 图例 说明颜色含义
                     data: ["已用", "剩余"],
                     bottom: "5%",
                     itemWidth: 12,
@@ -413,11 +420,11 @@
                     left: "8%",
                     right: "8%",
                     top: "15%",
-                    bottom: "20%", // 给 legend 和 xAxis 留空间
+                    bottom: "20%",
                   },
                   xAxis: {
                     type: "value",
-                    max: diskTotal, // 最大值 = 总容量
+                    max: diskTotal,
                     axisLabel: {
                       formatter: "{value} GB",
                       fontSize: 10,
@@ -438,11 +445,11 @@
                       label: {
                         show: true,
                         position: "inside",
-                        formatter: `${diskUsedStr} GB`,
+                        formatter: diskUsedStr + " GB",
                         color: "#fff",
                       },
                       itemStyle: {
-                        color: "#91cc75", // 绿色：已用
+                        color: "#91cc75",
                       },
                       data: [diskUsed],
                     },
@@ -453,10 +460,10 @@
                       label: {
                         show: true,
                         position: "inside",
-                        formatter: `${diskFreeStr} GB`,
+                        formatter: diskFreeStr + " GB",
                       },
                       itemStyle: {
-                        color: "#e0e0e0", // 浅灰色：剩余
+                        color: "#e0e0e0",
                       },
                       data: [diskFree],
                     },
@@ -464,9 +471,7 @@
                   tooltip: {
                     formatter: function (params) {
                       const unit = " GB";
-                      return `${params.seriesName}: ${parseFloat(
-                        params.value
-                      ).toFixed(1)}${unit}`;
+                      return params.seriesName + ": " + parseFloat(params.value).toFixed(1) + unit;
                     },
                   },
                 });
@@ -476,9 +481,8 @@
                 // ----------------------------
                 let netRecvMbps = [];
                 let netSentMbps = [];
-                let networkTimes = []; // 动态构建，与数据对齐
+                let networkTimes = [];
 
-                // 辅助函数：将 "HH:MM:SS" 转为当日的毫秒时间戳（仅用于差值）
                 function parseTimeToMs(timeStr) {
                   const [h, m, s] = timeStr.split(":").map(Number);
                   return (h * 3600 + m * 60 + s) * 1000;
@@ -487,39 +491,22 @@
                 for (let i = 1; i < dataList.length; i++) {
                   const prevTimeMs = parseTimeToMs(times[i - 1]);
                   const currTimeMs = parseTimeToMs(times[i]);
-                  const timeDiffSec = (currTimeMs - prevTimeMs) / 1000; // 单位：秒
+                  const timeDiffSec = (currTimeMs - prevTimeMs) / 1000;
 
-                  // 只有时间差在合理范围（例如 2.5 ~ 3.5 秒）才计算
-                  if (timeDiffSec >= 2.5 && timeDiffSec <= 3.5) {
-                    const bytesRecvDiff =
-                      dataList[i].network.recv - dataList[i - 1].network.recv;
-                    const bytesSentDiff =
-                      dataList[i].network.sent - dataList[i - 1].network.sent;
+                  if (timeDiffSec >= 4.5 && timeDiffSec <= 5.5) {
+                    const bytesRecvDiff = dataList[i].network.recv - dataList[i - 1].network.recv;
+                    const bytesSentDiff = dataList[i].network.sent - dataList[i - 1].network.sent;
 
-                    // 避免负值（理论上不会出现，但防御性编程）
                     if (bytesRecvDiff < 0 || bytesSentDiff < 0) continue;
 
-                    // 转换为 Mbps: (bytes * 8) / 1_000_000 / seconds
-                    const mbpsRecv = (
-                      (bytesRecvDiff * 8) /
-                      1_000_000 /
-                      timeDiffSec
-                    ).toFixed(2);
-                    const mbpsSent = (
-                      (bytesSentDiff * 8) /
-                      1_000_000 /
-                      timeDiffSec
-                    ).toFixed(2);
+                    const mbpsRecv = ((bytesRecvDiff * 8) / 1000000 / timeDiffSec).toFixed(2);
+                    const mbpsSent = ((bytesSentDiff * 8) / 1000000 / timeDiffSec).toFixed(2);
 
                     netRecvMbps.push(parseFloat(mbpsRecv));
                     netSentMbps.push(parseFloat(mbpsSent));
-                    networkTimes.push(times[i]); // 使用当前时间点作为该速率的代表时间
+                    networkTimes.push(times[i]);
                   }
-                  // 否则：跳过该点，不计入图表
                 }
-
-                // 时间轴对齐：比原始数据少一个点
-                // let networkTimes = times.slice(1);
 
                 chartNetwork.setOption({
                   title: {
@@ -529,14 +516,13 @@
                   },
                   tooltip: {
                     trigger: "axis",
-                    formatter: (params) => {
-                      return (
-                        params[0]?.name +
-                        "<br/>" +
-                        params
-                          .map((p) => `${p.seriesName}: ${p.value} Mbps`)
-                          .join("<br/>")
-                      );
+                    formatter: function(params) {
+                      if (!params || !params[0]) return '';
+                      let result = params[0].name + '<br/>';
+                      params.forEach(function(p) {
+                        result += p.seriesName + ': ' + p.value + ' Mbps<br/>';
+                      });
+                      return result;
                     },
                   },
                   legend: {
@@ -549,15 +535,15 @@
                     type: "category",
                     data: networkTimes,
                     axisLabel: {
-                      rotate: 45, // 与 memory/cpu 一致
-                      fontSize: 10, // 统一字号
+                      rotate: 45,
+                      fontSize: 10,
                     },
                   },
                   yAxis: {
                     type: "value",
                     min: 0,
                     axisLabel: {
-                      formatter: "{value} Mbps", // 显示单位
+                      formatter: "{value} Mbps",
                     },
                   },
                   series: [
@@ -568,13 +554,12 @@
                       smooth: true,
                       lineStyle: {
                         width: 2,
-                        color: "#91cc75", // 绿色：接收
+                        color: "#91cc75",
                       },
                       itemStyle: {
                         color: "#91cc75",
                       },
                       areaStyle: {
-                        // 轻微填充，增强可读性
                         color: {
                           type: "linear",
                           x: 0,
@@ -601,13 +586,12 @@
                       smooth: true,
                       lineStyle: {
                         width: 2,
-                        color: "#fac858", // 金色：发送
+                        color: "#fac858",
                       },
                       itemStyle: {
                         color: "#fac858",
                       },
                       areaStyle: {
-                        // 同样填充
                         color: {
                           type: "linear",
                           x: 0,
@@ -632,12 +616,16 @@
               }
             },
             complete: function () {
-              hostSatesTimer = setTimeout(renderHostStatsChart, 3000);
+              if (window.isPolling) {
+                hostSatesTimer = setTimeout(renderHostStatsChart, POLLING_INTERVAL);
+              }
             },
           });
         }
 
         window.clearnTimer = function () {
+          window.isPolling = false;
+          
           if (statisticTimer !== null) {
             clearTimeout(statisticTimer);
             statisticTimer = null;
@@ -654,7 +642,30 @@
             clearTimeout(hostSatesTimer);
             hostSatesTimer = null;
           }
+          
+          // 销毁图表实例，释放内存
+          if (chartStatistic) chartStatistic.dispose();
+          if (chartWorkThreadsLoad) chartWorkThreadsLoad.dispose();
+          if (chartThreadsLoad) chartThreadsLoad.dispose();
+          if (chartCpu) chartCpu.dispose();
+          if (chartMemory) chartMemory.dispose();
+          if (chartDisk) chartDisk.dispose();
+          if (chartNetwork) chartNetwork.dispose();
+          
+          // 清空历史数据
+          window.historyData = [];
         };
+
+        // 窗口大小变化时，重新调整图表大小
+        window.addEventListener('resize', debounce(function() {
+          if (chartStatistic) chartStatistic.resize();
+          if (chartWorkThreadsLoad) chartWorkThreadsLoad.resize();
+          if (chartThreadsLoad) chartThreadsLoad.resize();
+          if (chartCpu) chartCpu.resize();
+          if (chartMemory) chartMemory.resize();
+          if (chartDisk) chartDisk.resize();
+          if (chartNetwork) chartNetwork.resize();
+        }, 250));
 
         renderStatisticChart();
         renderThreadsLoadChart();

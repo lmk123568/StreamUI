@@ -1,7 +1,8 @@
 import os
 import re
 import shutil
-from contextlib import asynccontextmanager
+import sqlite3
+from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -12,20 +13,235 @@ from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from onvif.api import router as onvif_router
+# from onvif.api import router as onvif_router
 from scheduler import cleanup_old_videos
 from utils import get_video_shanghai_time, get_zlm_secret
+
+# 数据库相关配置
+DB_PATH = Path("settings.db")
+
+# 数据库连接池
+class DatabasePool:
+    def __init__(self, db_path, max_connections=5):
+        self.db_path = db_path
+        self.max_connections = max_connections
+        self.connections = []
+        
+    def get_connection(self):
+        if self.connections:
+            return self.connections.pop()
+        return sqlite3.connect(self.db_path)
+    
+    def return_connection(self, conn):
+        if len(self.connections) < self.max_connections:
+            self.connections.append(conn)
+        else:
+            conn.close()
+    
+    def close_all(self):
+        for conn in self.connections:
+            try:
+                conn.close()
+            except:
+                pass
+        self.connections = []
+
+# 创建数据库连接池
+db_pool = DatabasePool(DB_PATH)
+
+# 数据库连接上下文管理器
+@contextmanager
+def get_db_connection():
+    conn = db_pool.get_connection()
+    try:
+        yield conn
+    finally:
+        db_pool.return_connection(conn)
+
+# 初始化数据库
+def init_db():
+    """初始化数据库，创建表结构并插入默认配置"""
+    if not DB_PATH.parent.exists():
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        
+        # 创建拉流配置表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pull_streams (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vhost TEXT NOT NULL DEFAULT '__defaultVhost__',
+            app TEXT NOT NULL,
+            stream TEXT NOT NULL,
+            url TEXT NOT NULL,
+            enable_audio INTEGER NOT NULL DEFAULT 0,
+            add_mute_audio INTEGER NOT NULL DEFAULT 1,
+            rtp_type INTEGER NOT NULL DEFAULT 0,
+            timeout_sec REAL NOT NULL DEFAULT 15,
+            retry_count INTEGER NOT NULL DEFAULT -1,
+            enable_mp4 INTEGER NOT NULL DEFAULT 0,
+            enable_rtsp INTEGER NOT NULL DEFAULT 0,
+            enable_rtmp INTEGER NOT NULL DEFAULT 1,
+            enable_hls INTEGER NOT NULL DEFAULT 0,
+            enable_hls_fmp4 INTEGER NOT NULL DEFAULT 0,
+            enable_ts INTEGER NOT NULL DEFAULT 0,
+            enable_fmp4 INTEGER NOT NULL DEFAULT 1,
+            hls_demand INTEGER NOT NULL DEFAULT 0,
+            rtsp_demand INTEGER NOT NULL DEFAULT 0,
+            rtmp_demand INTEGER NOT NULL DEFAULT 0,
+            ts_demand INTEGER NOT NULL DEFAULT 0,
+            fmp4_demand INTEGER NOT NULL DEFAULT 0,
+            mp4_max_second INTEGER NOT NULL DEFAULT 30,
+            mp4_as_player INTEGER NOT NULL DEFAULT 0,
+            modify_stamp INTEGER NOT NULL DEFAULT 0,
+            auto_close INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(vhost, app, stream)
+        )
+        ''')
+        
+        # 创建默认配置表
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS default_configs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT NOT NULL UNIQUE,
+            value TEXT NOT NULL,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        
+        # 插入默认配置数据
+        default_configs = [
+            ("vhost", "__defaultVhost__", "虚拟主机名"),
+            ("app", "live", "应用名"),
+            ("enable_audio", "0", "是否启用音频"),
+            ("add_mute_audio", "1", "是否添加静音音频"),
+            ("rtp_type", "0", "rtsp拉流时，拉流方式，0：tcp，1：udp，2：组播"),
+            ("timeout_sec", "15", "拉流超时时间，单位秒"),
+            ("retry_count", "-1", "拉流重试次数，默认为-1无限重试"),
+            ("enable_mp4", "0", "是否允许mp4录制"),
+            ("enable_rtsp", "0", "是否转rtsp协议"),
+            ("enable_rtmp", "1", "是否转rtmp/flv协议"),
+            ("enable_hls", "0", "是否转换成hls-mpegts协议"),
+            ("enable_hls_fmp4", "0", "是否转换成hls-fmp4协议"),
+            ("enable_ts", "0", "是否转http-ts/ws-ts协议"),
+            ("enable_fmp4", "1", "是否转http-fmp4/ws-fmp4协议"),
+            ("hls_demand", "0", "是否启用HLS按需模式"),
+            ("rtsp_demand", "0", "是否启用RTSP按需模式"),
+            ("rtmp_demand", "0", "是否启用RTMP按需模式"),
+            ("ts_demand", "0", "是否启用TS按需模式"),
+            ("fmp4_demand", "0", "是否启用fMP4按需模式"),
+            ("mp4_max_second", "30", "mp4录制切片大小，单位秒"),
+            ("mp4_as_player", "0", "MP4录制是否当作观看者参与播放人数计数"),
+            ("modify_stamp", "1", "是否开启时间戳覆盖(0:绝对时间戳/1:系统时间戳/2:相对时间戳)"),
+            ("auto_close", "0", "无人观看是否自动关闭流(不触发无人观看hook)")
+        ]
+        
+        for key, value, description in default_configs:
+            cursor.execute('''
+            INSERT OR IGNORE INTO default_configs (key, value, description)
+            VALUES (?, ?, ?)
+            ''', (key, value, description))
+        
+        conn.commit()
+    print("[Database] 🚀 数据库初始化完成")
+
+# 执行数据库初始化
+init_db()
 
 # =========================================================
 # zlmediakit 地址
 ZLM_SERVER = "http://127.0.0.1:8080"
 # zlmediakit 密钥
-ZLM_SECRET = get_zlm_secret("/opt/media/conf/config.ini")
+try:
+    ZLM_SECRET = get_zlm_secret("/opt/media/conf/config.ini")
+except (FileNotFoundError, ValueError):
+    # 配置文件不存在时使用默认值
+    ZLM_SECRET = "035c73f7-bb6b-4889-a715-d9eb2d1925cc"
+    print("[Warning] 使用默认的 ZLM_SECRET 值，这仅用于测试")
 # zlmediakit 录像回放
 RECORD_ROOT = Path("/opt/media/bin/www/record")
 # 录像最大切片数
 KEEP_VIDEOS = 72
 # =========================================================
+
+
+async def load_pull_proxy_on_startup():
+    """应用启动时从数据库加载拉流配置"""
+    print("[Startup] 🚀 正在从数据库加载拉流配置...")
+    
+    try:
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # 先获取数据库中的所有配置
+            cursor.execute('''
+            SELECT * FROM pull_streams
+            ''')
+            rows = cursor.fetchall()
+            
+            if not rows:
+                print("[Startup] ℹ️ 数据库中没有拉流配置")
+                return
+            
+            success_count = 0
+            fail_count = 0
+            
+            # 逐个更新到 ZLMediaKit
+            for row in rows:
+                stream_config = dict(row)
+                query_params = {
+                    "secret": ZLM_SECRET,
+                    "vhost": stream_config["vhost"],
+                    "app": stream_config["app"],
+                    "stream": stream_config["stream"],
+                    "url": stream_config["url"],
+                    "enable_audio": str(stream_config["enable_audio"]),
+                    "add_mute_audio": str(stream_config["add_mute_audio"]),
+                    "rtp_type": str(stream_config["rtp_type"]),
+                    "timeout_sec": str(stream_config["timeout_sec"]),
+                    "retry_count": str(stream_config["retry_count"]),
+                    "enable_mp4": str(stream_config["enable_mp4"]),
+                    "enable_rtsp": str(stream_config["enable_rtsp"]),
+                    "enable_rtmp": str(stream_config["enable_rtmp"]),
+                    "enable_hls": str(stream_config["enable_hls"]),
+                    "enable_hls_fmp4": str(stream_config["enable_hls_fmp4"]),
+                    "enable_ts": str(stream_config["enable_ts"]),
+                    "enable_fmp4": str(stream_config["enable_fmp4"]),
+                    "hls_demand": str(stream_config["hls_demand"]),
+                    "rtsp_demand": str(stream_config["rtsp_demand"]),
+                    "rtmp_demand": str(stream_config["rtmp_demand"]),
+                    "ts_demand": str(stream_config["ts_demand"]),
+                    "fmp4_demand": str(stream_config["fmp4_demand"]),
+                    "mp4_max_second": str(stream_config["mp4_max_second"]),
+                    "mp4_as_player": str(stream_config["mp4_as_player"]),
+                    "modify_stamp": str(stream_config["modify_stamp"]),
+                    "auto_close": str(stream_config["auto_close"]),
+                }
+                
+                try:
+                    response = await client.get(
+                        f"{ZLM_SERVER}/index/api/addStreamProxy", params=query_params
+                    )
+                    result = response.json()
+                    
+                    if result.get("code") == 0:
+                        success_count += 1
+                    else:
+                        fail_count += 1
+                        print(f"[Startup] ❌ 加载拉流配置失败: {stream_config['app']}/{stream_config['stream']} - {result.get('msg')}")
+                except Exception as e:
+                    fail_count += 1
+                    print(f"[Startup] ❌ 加载拉流配置异常: {stream_config['app']}/{stream_config['stream']} - {e}")
+        
+        print(f"[Startup] 🎉 拉流配置加载完成，成功: {success_count}, 失败: {fail_count}")
+    except Exception as e:
+        print(f"[Startup] ❌ 从数据库加载配置失败: {e}")
 
 
 @asynccontextmanager
@@ -45,6 +261,9 @@ async def lifespan(app: FastAPI):
     # 只有在这里，事件循环已经启动，可以安全 start
     scheduler.start()
     print("[Scheduler] 🚀 定时任务已启动")
+
+    # 启动时从数据库加载拉流配置
+    await load_pull_proxy_on_startup()
 
     yield
 
@@ -175,6 +394,27 @@ async def post_pull_proxy(
     stream: str = Query(..., description="流ID"),
     url: str = Query(..., description="源流地址"),
     audio_type: int | None = Query(None, description="音频设置"),
+    enable_audio: int = Query(0, description="是否启用音频"),
+    add_mute_audio: int = Query(1, description="是否添加静音音频"),
+    rtp_type: int = Query(0, description="rtsp拉流时，拉流方式"),
+    timeout_sec: float = Query(15, description="拉流超时时间，单位秒"),
+    retry_count: int = Query(-1, description="拉流重试次数"),
+    enable_mp4: int = Query(0, description="是否允许mp4录制"),
+    enable_rtsp: int = Query(0, description="是否转rtsp协议"),
+    enable_rtmp: int = Query(1, description="是否转rtmp/flv协议"),
+    enable_hls: int = Query(0, description="是否转换成hls-mpegts协议"),
+    enable_hls_fmp4: int = Query(0, description="是否转换成hls-fmp4协议"),
+    enable_ts: int = Query(0, description="是否转http-ts/ws-ts协议"),
+    enable_fmp4: int = Query(1, description="是否转http-fmp4/ws-fmp4协议"),
+    hls_demand: int = Query(0, description="是否启用HLS按需模式"),
+    rtsp_demand: int = Query(0, description="是否启用RTSP按需模式"),
+    rtmp_demand: int = Query(0, description="是否启用RTMP按需模式"),
+    ts_demand: int = Query(0, description="是否启用TS按需模式"),
+    fmp4_demand: int = Query(0, description="是否启用fMP4按需模式"),
+    mp4_max_second: int = Query(30, description="mp4录制切片大小，单位秒"),
+    mp4_as_player: int = Query(0, description="MP4录制是否当作观看者参与播放人数计数"),
+    modify_stamp: int = Query(1, description="是否开启时间戳覆盖"),
+    auto_close: int = Query(0, description="无人观看是否自动关闭流"),
 ):
     if not re.match(r"^[a-zA-Z0-9._-]+$", app):
         return {
@@ -197,6 +437,18 @@ async def post_pull_proxy(
             "msg": "源流地址必须以 rtsp://、rtmp://、http:// 或 https:// 开头",
         }
 
+    # 处理 audio_type 映射（兼容旧接口）
+    if audio_type is not None:
+        if audio_type == 0:
+            enable_audio = 0
+            add_mute_audio = 0
+        elif audio_type == 1:
+            enable_audio = 1
+            add_mute_audio = 0
+        elif audio_type == 2:
+            enable_audio = 1
+            add_mute_audio = 1
+
     # 构造转发请求
     query_params = {
         "secret": ZLM_SECRET,
@@ -204,23 +456,96 @@ async def post_pull_proxy(
         "app": app,
         "stream": stream,
         "url": url,
+        "enable_audio": str(enable_audio),
+        "add_mute_audio": str(add_mute_audio),
+        "rtp_type": str(rtp_type),
+        "timeout_sec": str(timeout_sec),
+        "retry_count": str(retry_count),
+        "enable_mp4": str(enable_mp4),
+        "enable_rtsp": str(enable_rtsp),
+        "enable_rtmp": str(enable_rtmp),
+        "enable_hls": str(enable_hls),
+        "enable_hls_fmp4": str(enable_hls_fmp4),
+        "enable_ts": str(enable_ts),
+        "enable_fmp4": str(enable_fmp4),
+        "hls_demand": str(hls_demand),
+        "rtsp_demand": str(rtsp_demand),
+        "rtmp_demand": str(rtmp_demand),
+        "ts_demand": str(ts_demand),
+        "fmp4_demand": str(fmp4_demand),
+        "mp4_max_second": str(mp4_max_second),
+        "mp4_as_player": str(mp4_as_player),
+        "modify_stamp": str(modify_stamp),
+        "auto_close": str(auto_close),
     }
 
-    # 处理 audio_type 映射
-    if audio_type == 0:
-        query_params["enable_audio"] = "0"
-        query_params["add_mute_audio"] = "0"
-    elif audio_type == 1:
-        query_params["enable_audio"] = "1"
-        query_params["add_mute_audio"] = "0"
-    elif audio_type == 2:
-        query_params["enable_audio"] = "1"
-        query_params["add_mute_audio"] = "1"
+    # 先尝试删除已存在的流（如果存在）
+    del_params = {
+        "secret": ZLM_SECRET,
+        "key": f"{vhost}/{app}/{stream}"
+    }
+    await client.get(
+        f"{ZLM_SERVER}/index/api/delStreamProxy", params=del_params
+    )
 
+    # 发送请求到 ZLMediaKit 添加新流
     response = await client.get(
         f"{ZLM_SERVER}/index/api/addStreamProxy", params=query_params
     )
-    return response.json()
+    result = response.json()
+
+    # 如果成功，保存到数据库
+    if result.get("code") == 0:
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                # 先检查记录是否存在
+                cursor.execute('''
+                SELECT id FROM pull_streams WHERE vhost = ? AND app = ? AND stream = ?
+                ''', (vhost, app, stream))
+                existing_record = cursor.fetchone()
+                
+                if existing_record:
+                    # 记录存在，使用 UPDATE 语句更新
+                    cursor.execute('''
+                    UPDATE pull_streams SET 
+                    url = ?, enable_audio = ?, add_mute_audio = ?, rtp_type = ?, timeout_sec = ?, 
+                    retry_count = ?, enable_mp4 = ?, enable_rtsp = ?, enable_rtmp = ?, enable_hls = ?, 
+                    enable_hls_fmp4 = ?, enable_ts = ?, enable_fmp4 = ?, hls_demand = ?, rtsp_demand = ?, 
+                    rtmp_demand = ?, ts_demand = ?, fmp4_demand = ?, mp4_max_second = ?, mp4_as_player = ?, 
+                    modify_stamp = ?, auto_close = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE vhost = ? AND app = ? AND stream = ?
+                    ''', (
+                        url, enable_audio, add_mute_audio, rtp_type, timeout_sec,
+                        retry_count, enable_mp4, enable_rtsp, enable_rtmp, enable_hls,
+                        enable_hls_fmp4, enable_ts, enable_fmp4, hls_demand, rtsp_demand,
+                        rtmp_demand, ts_demand, fmp4_demand, mp4_max_second, mp4_as_player,
+                        modify_stamp, auto_close, vhost, app, stream
+                    ))
+                else:
+                    # 记录不存在，使用 INSERT 语句插入
+                    cursor.execute('''
+                    INSERT INTO pull_streams 
+                    (vhost, app, stream, url, enable_audio, add_mute_audio, rtp_type, timeout_sec, 
+                     retry_count, enable_mp4, enable_rtsp, enable_rtmp, enable_hls, enable_hls_fmp4, 
+                     enable_ts, enable_fmp4, hls_demand, rtsp_demand, rtmp_demand, ts_demand, 
+                     fmp4_demand, mp4_max_second, mp4_as_player, modify_stamp, auto_close, 
+                     created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ''', (
+                        vhost, app, stream, url, enable_audio, add_mute_audio, rtp_type, timeout_sec,
+                        retry_count, enable_mp4, enable_rtsp, enable_rtmp, enable_hls, enable_hls_fmp4,
+                        enable_ts, enable_fmp4, hls_demand, rtsp_demand, rtmp_demand, ts_demand,
+                        fmp4_demand, mp4_max_second, mp4_as_player, modify_stamp, auto_close
+                    ))
+                
+                conn.commit()
+                print(f"[Database] 📝 拉流配置已保存: {app}/{stream}")
+        except Exception as e:
+            print(f"[Database] ❌ 保存拉流配置失败: {e}")
+
+    return result
 
 
 @app.delete("/api/stream/pull-proxy", summary="删除拉流代理", tags=["流"])
@@ -232,10 +557,27 @@ async def delete_pull_proxy(
     query_params = {"secret": ZLM_SECRET}
     query_params["key"] = f"{vhost}/{app}/{stream}"
 
+    # 发送请求到 ZLMediaKit
     response = await client.get(
         f"{ZLM_SERVER}/index/api/delStreamProxy", params=query_params
     )
-    return response.json()
+    result = response.json()
+
+    # 如果成功，从数据库中删除
+    if result.get("code") == 0:
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                DELETE FROM pull_streams WHERE vhost = ? AND app = ? AND stream = ?
+                ''', (vhost, app, stream))
+                conn.commit()
+                print(f"[Database] 🗑️ 拉流配置已删除: {app}/{stream}")
+        except Exception as e:
+            print(f"[Database] ❌ 删除拉流配置失败: {e}")
+
+    return result
 
 
 @app.get("/api/stream/pull-proxy-list", summary="获取拉流代理列表", tags=["流"])
@@ -245,6 +587,307 @@ async def get_pull_proxy_list():
         f"{ZLM_SERVER}/index/api/listStreamProxy", params=query_params
     )
     return response.json()
+
+
+@app.get("/api/stream/pull-proxy-list-db", summary="获取数据库中的拉流代理列表", tags=["流"])
+async def get_pull_proxy_list_db():
+    """从数据库中获取拉流代理列表"""
+    try:
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+            SELECT * FROM pull_streams ORDER BY id DESC
+            ''')
+            rows = cursor.fetchall()
+            
+            data = []
+            for row in rows:
+                data.append(dict(row))
+            
+            return {"code": 0, "data": data}
+    except Exception as e:
+        return {"code": -1, "msg": f"获取数据库拉流列表失败: {e}"}
+
+
+@app.post("/api/stream/pull-proxy-load", summary="从数据库加载拉流配置到服务器", tags=["流"])
+async def load_pull_proxy_from_db():
+    """从数据库加载所有拉流配置并更新到ZLMediaKit服务器"""
+    try:
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            # 先获取数据库中的所有配置
+            cursor.execute('''
+            SELECT * FROM pull_streams
+            ''')
+            rows = cursor.fetchall()
+            
+            results = []
+            success_count = 0
+            fail_count = 0
+            
+            # 逐个更新到 ZLMediaKit
+            for row in rows:
+                stream_config = dict(row)
+                query_params = {
+                    "secret": ZLM_SECRET,
+                    "vhost": stream_config["vhost"],
+                    "app": stream_config["app"],
+                    "stream": stream_config["stream"],
+                    "url": stream_config["url"],
+                    "enable_audio": str(stream_config["enable_audio"]),
+                    "add_mute_audio": str(stream_config["add_mute_audio"]),
+                    "rtp_type": str(stream_config["rtp_type"]),
+                    "timeout_sec": str(stream_config["timeout_sec"]),
+                    "retry_count": str(stream_config["retry_count"]),
+                    "enable_mp4": str(stream_config["enable_mp4"]),
+                    "enable_rtsp": str(stream_config["enable_rtsp"]),
+                    "enable_rtmp": str(stream_config["enable_rtmp"]),
+                    "enable_hls": str(stream_config["enable_hls"]),
+                    "enable_hls_fmp4": str(stream_config["enable_hls_fmp4"]),
+                    "enable_ts": str(stream_config["enable_ts"]),
+                    "enable_fmp4": str(stream_config["enable_fmp4"]),
+                    "hls_demand": str(stream_config["hls_demand"]),
+                    "rtsp_demand": str(stream_config["rtsp_demand"]),
+                    "rtmp_demand": str(stream_config["rtmp_demand"]),
+                    "ts_demand": str(stream_config["ts_demand"]),
+                    "fmp4_demand": str(stream_config["fmp4_demand"]),
+                    "mp4_max_second": str(stream_config["mp4_max_second"]),
+                    "mp4_as_player": str(stream_config["mp4_as_player"]),
+                    "modify_stamp": str(stream_config["modify_stamp"]),
+                    "auto_close": str(stream_config["auto_close"]),
+                }
+                
+                response = await client.get(
+                    f"{ZLM_SERVER}/index/api/addStreamProxy", params=query_params
+                )
+                result = response.json()
+                
+                if result.get("code") == 0:
+                    success_count += 1
+                else:
+                    fail_count += 1
+                
+                results.append({
+                    "app": stream_config["app"],
+                    "stream": stream_config["stream"],
+                    "result": result
+                })
+        
+        return {
+            "code": 0,
+            "msg": f"从数据库加载配置完成，成功: {success_count}, 失败: {fail_count}",
+            "data": results
+        }
+    except Exception as e:
+        return {"code": -1, "msg": f"从数据库加载配置失败: {e}"}
+
+
+@app.get("/api/stream/pull-proxy-export", summary="导出拉流配置为CSV文件", tags=["流"])
+async def export_pull_proxy():
+    """导出数据库中的拉流配置为CSV格式"""
+    try:
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+            SELECT * FROM pull_streams
+            ''')
+            rows = cursor.fetchall()
+            
+            if not rows:
+                return {"code": -1, "msg": "数据库中没有拉流配置"}
+            
+            # 生成CSV内容
+            import csv
+            import io
+            
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(dict(row))
+            
+            csv_content = output.getvalue()
+            
+            # 这里返回CSV内容，前端可以处理下载
+            return {
+                "code": 0,
+                "data": csv_content,
+                "msg": f"成功导出 {len(rows)} 条拉流配置"
+            }
+    except Exception as e:
+        return {"code": -1, "msg": f"导出配置失败: {e}"}
+
+
+@app.post("/api/stream/pull-proxy-import", summary="从CSV文件导入拉流配置", tags=["流"])
+async def import_pull_proxy(request: Request):
+    """从CSV文件导入拉流配置并更新到服务器"""
+    try:
+        data = await request.json()
+        csv_content = data.get("csv_content")
+        
+        if not csv_content:
+            return {"code": -1, "msg": "缺少CSV内容"}
+        
+        # 解析CSV内容
+        import csv
+        import io
+        
+        reader = csv.DictReader(io.StringIO(csv_content))
+        configs = list(reader)
+        
+        if not configs:
+            return {"code": -1, "msg": "CSV文件中没有配置数据"}
+        
+        # 导入到数据库并更新到服务器
+        success_count = 0
+        fail_count = 0
+        results = []
+        
+        try:
+            with get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                for config in configs:
+                    # 验证必要字段
+                    if not all(key in config for key in ["app", "stream", "url"]):
+                        fail_count += 1
+                        results.append({
+                            "app": config.get("app", ""),
+                            "stream": config.get("stream", ""),
+                            "result": {"code": -1, "msg": "缺少必要字段"}
+                        })
+                        continue
+                    
+                    # 转换字段类型
+                    try:
+                        # 保存到数据库
+                        cursor.execute('''
+                        INSERT OR REPLACE INTO pull_streams 
+                        (vhost, app, stream, url, enable_audio, add_mute_audio, rtp_type, timeout_sec, 
+                         retry_count, enable_mp4, enable_rtsp, enable_rtmp, enable_hls, enable_hls_fmp4, 
+                         enable_ts, enable_fmp4, hls_demand, rtsp_demand, rtmp_demand, ts_demand, 
+                         fmp4_demand, mp4_max_second, mp4_as_player, modify_stamp, auto_close, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                        ''', (
+                            config.get("vhost", "__defaultVhost__"),
+                            config.get("app"),
+                            config.get("stream"),
+                            config.get("url"),
+                            int(config.get("enable_audio", 0)),
+                            int(config.get("add_mute_audio", 1)),
+                            int(config.get("rtp_type", 0)),
+                            float(config.get("timeout_sec", 15)),
+                            int(config.get("retry_count", -1)),
+                            int(config.get("enable_mp4", 0)),
+                            int(config.get("enable_rtsp", 0)),
+                            int(config.get("enable_rtmp", 1)),
+                            int(config.get("enable_hls", 0)),
+                            int(config.get("enable_hls_fmp4", 0)),
+                            int(config.get("enable_ts", 0)),
+                            int(config.get("enable_fmp4", 1)),
+                            int(config.get("hls_demand", 0)),
+                            int(config.get("rtsp_demand", 0)),
+                            int(config.get("rtmp_demand", 0)),
+                            int(config.get("ts_demand", 0)),
+                            int(config.get("fmp4_demand", 0)),
+                            int(config.get("mp4_max_second", 30)),
+                            int(config.get("mp4_as_player", 0)),
+                            int(config.get("modify_stamp", 1)),
+                            int(config.get("auto_close", 0))
+                        ))
+                        
+                        # 更新到ZLMediaKit
+                        query_params = {
+                            "secret": ZLM_SECRET,
+                            "vhost": config.get("vhost", "__defaultVhost__"),
+                            "app": config.get("app"),
+                            "stream": config.get("stream"),
+                            "url": config.get("url"),
+                            "enable_audio": str(config.get("enable_audio", 0)),
+                            "add_mute_audio": str(config.get("add_mute_audio", 1)),
+                            "rtp_type": str(config.get("rtp_type", 0)),
+                            "timeout_sec": str(config.get("timeout_sec", 15)),
+                            "retry_count": str(config.get("retry_count", -1)),
+                            "enable_mp4": str(config.get("enable_mp4", 0)),
+                            "enable_rtsp": str(config.get("enable_rtsp", 0)),
+                            "enable_rtmp": str(config.get("enable_rtmp", 1)),
+                            "enable_hls": str(config.get("enable_hls", 0)),
+                            "enable_hls_fmp4": str(config.get("enable_hls_fmp4", 0)),
+                            "enable_ts": str(config.get("enable_ts", 0)),
+                            "enable_fmp4": str(config.get("enable_fmp4", 1)),
+                            "hls_demand": str(config.get("hls_demand", 0)),
+                            "rtsp_demand": str(config.get("rtsp_demand", 0)),
+                            "rtmp_demand": str(config.get("rtmp_demand", 0)),
+                            "ts_demand": str(config.get("ts_demand", 0)),
+                            "fmp4_demand": str(config.get("fmp4_demand", 0)),
+                            "mp4_max_second": str(config.get("mp4_max_second", 30)),
+                            "mp4_as_player": str(config.get("mp4_as_player", 0)),
+                            "modify_stamp": str(config.get("modify_stamp", 1)),
+                            "auto_close": str(config.get("auto_close", 0)),
+                        }
+                        
+                        response = await client.get(
+                            f"{ZLM_SERVER}/index/api/addStreamProxy", params=query_params
+                        )
+                        result = response.json()
+                        
+                        if result.get("code") == 0:
+                            success_count += 1
+                        else:
+                            fail_count += 1
+                        
+                        results.append({
+                            "app": config.get("app"),
+                            "stream": config.get("stream"),
+                            "result": result
+                        })
+                    except Exception as e:
+                        fail_count += 1
+                        results.append({
+                            "app": config.get("app", ""),
+                            "stream": config.get("stream", ""),
+                            "result": {"code": -1, "msg": f"处理失败: {e}"}
+                        })
+                
+                conn.commit()
+                
+                return {
+                    "code": 0,
+                    "msg": f"导入配置完成，成功: {success_count}, 失败: {fail_count}",
+                    "data": results
+                }
+        except Exception as e:
+            return {"code": -1, "msg": f"导入配置失败: {e}"}
+    except Exception as e:
+        return {"code": -1, "msg": f"导入配置失败: {e}"}
+
+
+@app.get("/api/stream/default-configs", summary="获取默认配置值", tags=["流"])
+async def get_default_configs():
+    """获取默认配置值"""
+    try:
+        with get_db_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+            SELECT * FROM default_configs
+            ''')
+            rows = cursor.fetchall()
+            
+            data = {}
+            for row in rows:
+                data[row["key"]] = row["value"]
+            
+            return {"code": 0, "data": data}
+    except Exception as e:
+        return {"code": -1, "msg": f"获取默认配置失败: {e}"}
 
 
 @app.get("/api/stream/streamid-list", summary="获取当前在线流ID列表", tags=["流"])
@@ -588,7 +1231,7 @@ async def put_server_config(request: Request):
     return response.json()
 
 
-app.include_router(onvif_router)
+# app.include_router(onvif_router)
 
 if __name__ == "__main__":
     import uvicorn
