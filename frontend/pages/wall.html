@@ -130,6 +130,10 @@
           this.container = container; //  挂载到 ID_videowall_container
           this.index = index; // 分屏索引
           this.element = null;
+          this.playerEl = null;
+          this.statusEl = null;
+          this.configBtn = null;
+          this.resetBtn = null;
 
           this.init();
         }
@@ -148,29 +152,63 @@
           // 将创建的 DOM 添加到父容器
           this.container.appendChild(this.element);
 
+          // 缓存DOM元素引用
+          this.playerEl = this.element.querySelector("video");
+          this.statusEl = this.element.querySelector(".video-status");
+          this.configBtn = this.element.querySelector(".config-btn");
+          this.resetBtn = this.element.querySelector(".reset-btn");
+
           // 配置按钮: 打开流ID树
-          let configBtn = this.element.querySelector(".config-btn");
-          configBtn.addEventListener("click", () => this.openLayer());
+          this.configBtn.addEventListener("click", () => this.openLayer());
 
           // 重置按钮: 关闭fmp4连接并停止播放
-          let resetBtn = this.element.querySelector(".reset-btn");
-          resetBtn.addEventListener("click", () => this.stopPlay());
+          this.resetBtn.addEventListener("click", () => this.stopPlay());
 
           // 添加状态监听
-          // let playerEl = this.element.querySelector("video");
-          // let statusEl = this.element.querySelector(".video-status");
+          if (this.playerEl && this.statusEl) {
+            function showLoading() {
+              this.statusEl.textContent = "Loading...";
+              this.statusEl.style.display = "flex";
+            }
+            function hideStatus() {
+              this.statusEl.style.display = "none";
+            }
+            this.playerEl.addEventListener("loadstart", showLoading.bind(this));
+            this.playerEl.addEventListener("waiting", showLoading.bind(this));
+            this.playerEl.addEventListener("playing", hideStatus.bind(this));
+            this.playerEl.addEventListener("canplay", hideStatus.bind(this));
+          }
+        };
 
-          // function showLoading() {
-          //   statusEl.textContent = "Loading...";
-          //   statusEl.style.display = "flex";
-          // }
-          // function hideStatus() {
-          //   statusEl.style.display = "none";
-          // }
-          // playerEl.addEventListener("loadstart", showLoading);
-          // playerEl.addEventListener("waiting", showLoading);
-          // playerEl.addEventListener("playing", hideStatus);
-          // playerEl.addEventListener("canplay", hideStatus);
+        VideoCell.prototype.destroy = function () {
+          // 停止播放
+          this.stopPlay();
+          
+          // 移除事件监听器
+          if (this.configBtn) {
+            this.configBtn.removeEventListener("click", () => this.openLayer());
+          }
+          if (this.resetBtn) {
+            this.resetBtn.removeEventListener("click", () => this.stopPlay());
+          }
+          if (this.playerEl) {
+            this.playerEl.removeEventListener("loadstart", () => {});
+            this.playerEl.removeEventListener("waiting", () => {});
+            this.playerEl.removeEventListener("playing", () => {});
+            this.playerEl.removeEventListener("canplay", () => {});
+          }
+          
+          // 从DOM中移除
+          if (this.element && this.element.parentNode) {
+            this.element.parentNode.removeChild(this.element);
+          }
+          
+          // 清空引用
+          this.element = null;
+          this.playerEl = null;
+          this.statusEl = null;
+          this.configBtn = null;
+          this.resetBtn = null;
         };
 
         VideoCell.prototype.openLayer = function () {

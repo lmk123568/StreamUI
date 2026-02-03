@@ -68,26 +68,53 @@
     <div style="padding: 16px 16px 0 16px">
       <div class="layui-card">
         <div class="layui-card-body">
-          <div>
-            <button
-              class="layui-btn"
-              id="ID_pull_onvif_btn"
-              style="background-color: #16baaa"
-              type="button"
-            >
-              ONVIF接入
-            </button>
-            <button
-              class="layui-btn"
-              id="ID_pull_url_btn"
-              style="background-color: #16baaa"
-              type="button"
-            >
-              直播流接入
-            </button>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <button
+                class="layui-btn"
+                id="ID_pull_onvif_btn"
+                style="background-color: #16baaa"
+                type="button"
+              >
+                ONVIF接入
+              </button>
+              <button
+                class="layui-btn"
+                id="ID_pull_url_btn"
+                style="background-color: #16baaa"
+                type="button"
+              >
+                直播流接入
+              </button>
+            </div>
+            <div>
+              <button
+                class="layui-btn"
+                id="ID_pull_update_btn"
+                style="background-color: #31bdec"
+                type="button"
+              >
+                更新
+              </button>
+              <button
+                class="layui-btn"
+                id="ID_pull_export_btn"
+                style="background-color: #5FB878"
+                type="button"
+              >
+                导出
+              </button>
+              <button
+                class="layui-btn"
+                id="ID_pull_import_btn"
+                style="background-color: #FFB800"
+                type="button"
+              >
+                导入
+              </button>
+            </div>
           </div>
         </div>
-      </div>
     </div>
 
     <div style="padding: 16px">
@@ -145,132 +172,173 @@
     <!-- 直播流接入 模板 -->
     <script id="ID_tpl_pull_url" type="text/html">
       <form id="ID_active_pull_form" class="layui-form" action="">
-        <!-- 源流地址 -->
-        <div class="layui-form-item">
-          <label class="layui-form-label">直播流地址</label>
-          <div class="layui-input-block">
-            <input
-              type="text"
-              name="url"
-              required
-              placeholder="请输入直播流地址，支持 RTSP / RTMP / FLV / HLS / TS ..."
-              autocomplete="off"
-              class="layui-input"
-            />
+        <!-- 基本配置 -->
+        <div class="layui-card" style="margin-bottom: 20px;">
+          <div class="layui-card-header">
+            <h3 style="margin: 0;">基本配置</h3>
+          </div>
+          <div class="layui-card-body">
+            <!-- 虚拟主机 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">虚拟主机名</label>
+              <div class="layui-input-block">
+                <input
+                  type="text"
+                  name="vhost"
+                  value="__defaultVhost__"
+                  required
+                  placeholder="虚拟主机名"
+                  autocomplete="off"
+                  class="layui-input"
+                />
+              </div>
+            </div>
+
+            <!-- 应用名 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">应用名</label>
+              <div class="layui-input-block">
+                <input
+                  type="text"
+                  name="app"
+                  value="live"
+                  required
+                  placeholder="设置一个应用名"
+                  autocomplete="off"
+                  class="layui-input"
+                />
+              </div>
+            </div>
+
+            <!-- 流ID -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">流ID</label>
+              <div class="layui-input-block">
+                <input
+                  type="text"
+                  name="stream"
+                  required
+                  placeholder="为该流设置一个流ID"
+                  autocomplete="off"
+                  class="layui-input"
+                />
+              </div>
+            </div>
+
+            <!-- 源流地址 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">直播流地址</label>
+              <div class="layui-input-block">
+                <input
+                  type="text"
+                  name="url"
+                  required
+                  placeholder="请输入直播流地址，支持 RTSP / RTMP / FLV / HLS / TS ..."
+                  autocomplete="off"
+                  class="layui-input"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 虚拟主机 -->
-        <input type="hidden" name="vhost" value="__defaultVhost__" />
-
-        <!-- 应用名 -->
-        <div class="layui-form-item">
-          <label class="layui-form-label">应用名</label>
-          <div class="layui-input-block">
-            <input
-              type="text"
-              name="app"
-              value="live"
-              required
-              placeholder="设置一个应用名"
-              autocomplete="off"
-              class="layui-input"
-            />
+        <!-- 高级配置 -->
+        <div class="layui-card">
+          <div class="layui-card-header" style="cursor: pointer;" id="advanced_config_header">
+            <h3 style="margin: 0; display: flex; justify-content: space-between; align-items: center;">
+              <span>高级配置</span>
+              <i class="layui-icon layui-icon-down" id="advanced_config_icon"></i>
+            </h3>
           </div>
-        </div>
+          <div class="layui-card-body" id="advanced_config_body" style="display: none;">
+            <!-- 音频配置 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">音频设置</label>
+              <div class="layui-input-block">
+                <input type="checkbox" name="enable_audio" title="启用音频" lay-skin="switch" />
+                <input type="checkbox" name="add_mute_audio" title="添加静音音频" lay-skin="switch" checked />
+              </div>
+            </div>
 
-        <!-- 流ID -->
-        <div class="layui-form-item">
-          <label class="layui-form-label">流ID</label>
-          <div class="layui-input-block">
-            <input
-              type="text"
-              name="stream"
-              required
-              placeholder="为该流设置一个流ID"
-              autocomplete="off"
-              class="layui-input"
-            />
-          </div>
-        </div>
+            <!-- 传输协议 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">RTP 传输</label>
+              <div class="layui-input-block">
+                <select name="rtp_type">
+                  <option value="0">RTP over RTSP (TCP)</option>
+                  <option value="1">RTP over UDP</option>
+                  <option value="2">Multicast</option>
+                </select>
+              </div>
+            </div>
 
-        <!-- 转发发流协议 -->
-        <!-- <div class="layui-form-item">
-          <label class="layui-form-label">分发协议</label>
-          <div class="layui-input-block"> -->
-        <!-- RTSP -->
-        <!-- <input
-              type="checkbox"
-              name="enable_rtsp"
-              title="RTSP"
-              lay-skin="switch"
-              checked
-            /> -->
-        <!-- RTMP -->
-        <!-- <input
-              type="checkbox"
-              name="enable_rtmp"
-              title="RTMP"
-              lay-skin="switch"
-            /> -->
-        <!-- HLS -->
-        <!-- <input
-              type="checkbox"
-              name="enable_hls"
-              title="HLS"
-              lay-skin="switch"
-            /> -->
-        <!-- HLS-fMP4 -->
-        <!-- <input
-              type="checkbox"
-              name="enable_hls_fmp4"
-              title="HLS-fMP4"
-              lay-skin="switch"
-            /> -->
-        <!-- TS -->
-        <!-- <input
-              type="checkbox"
-              name="enable_ts"
-              title="HTTP-TS"
-              lay-skin="switch"
-            /> -->
-        <!-- fMP4 -->
-        <!-- <input
-              type="checkbox"
-              name="enable_fmp4"
-              title="HTTP-fMP4"
-              lay-skin="switch"
-            /> -->
-        <!-- </div>
-        </div> -->
+            <!-- 拉流配置 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">拉流配置</label>
+              <div class="layui-input-block">
+                <span style="margin-right: 10px;">拉流超时时间：</span>
+                <input type="number" name="timeout_sec" value="15" placeholder="秒" class="layui-input" style="width: 150px; margin-right: 20px;" />
+                <span style="margin-right: 10px;">重试次数：</span>
+                <input type="number" name="retry_count" value="-1" placeholder="-1无限" class="layui-input" style="width: 150px;" />
+              </div>
+            </div>
 
-        <!-- 传输协议 -->
-        <!-- <div class="layui-form-item">
-          <label class="layui-form-label">RTP 传输</label>
-          <div class="layui-input-block">
-            <select name="rtp_type">
-              <option value="0">RTP over RTSP</option>
-              <option value="1">RTP over UDP</option>
-              <option value="2">Multicast</option>
-            </select>
-          </div>
-        </div> -->
+            <!-- 分发协议 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">分发协议</label>
+              <div class="layui-input-block">
+                <input type="checkbox" name="enable_rtsp" title="RTSP" lay-skin="switch" />
+                <input type="checkbox" name="enable_rtmp" title="RTMP" lay-skin="switch" checked />
+                <input type="checkbox" name="enable_hls" title="HLS" lay-skin="switch" />
+                <input type="checkbox" name="enable_ts" title="HTTP-TS" lay-skin="switch" />
+                <input type="checkbox" name="enable_fmp4" title="HTTP-fMP4" lay-skin="switch" checked />
+                <input type="checkbox" name="enable_hls_fmp4" title="HLS-fMP4" lay-skin="switch" />
+              </div>
+            </div>
 
-        <!-- 音频 -->
-        <div class="layui-form-item">
-          <label class="layui-form-label">音频设置</label>
-          <div class="layui-input-block">
-            <select name="audio_type">
-              <option value="0">不转发音频</option>
-              <option value="1">转发原音频</option>
-              <option value="2">转发静音音频</option>
-            </select>
+            <!-- 按需模式 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">按需模式</label>
+              <div class="layui-input-block">
+                <input type="checkbox" name="rtsp_demand" title="RTSP" lay-skin="switch" />
+                <input type="checkbox" name="rtmp_demand" title="RTMP" lay-skin="switch" />
+                <input type="checkbox" name="hls_demand" title="HLS" lay-skin="switch" />
+                <input type="checkbox" name="ts_demand" title="HTTP-TS" lay-skin="switch" />
+                <input type="checkbox" name="fmp4_demand" title="HTTP-fMP4" lay-skin="switch" />
+              </div>
+            </div>
+
+            <!-- MP4录制 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">MP4录制</label>
+              <div class="layui-input-block">
+                <input type="checkbox" name="enable_mp4" title="启用MP4录制" lay-skin="switch" />
+                <input type="checkbox" name="mp4_as_player" title="当作观看者" lay-skin="switch" style="margin-left: 20px;" />
+                <div style="margin-top: 10px; margin-left: 20px; display: inline-block;">
+                  <span style="display: block; margin-bottom: 5px;">录制切片大小：</span>
+                  <input type="number" name="mp4_max_second" value="30" placeholder="秒" class="layui-input" style="width: 150px;" />
+                </div>
+              </div>
+            </div>
+
+            <!-- 其他配置 -->
+            <div class="layui-form-item">
+              <label class="layui-form-label">其他配置</label>
+              <div class="layui-input-block">
+                <select name="modify_stamp">
+                  <option value="0">绝对时间戳</option>
+                  <option value="1" selected>系统时间戳</option>
+                  <option value="2">相对时间戳</option>
+                </select>
+                <input type="checkbox" name="auto_close" title="无人观看自动关闭" lay-skin="switch" style="margin-left: 20px;" />
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- 提交表单按钮 -->
-        <div class="layui-form-item">
-          <div class="layui-input-block">
+        <div class="layui-form-item" style="margin-top: 20px; margin-bottom: 10px;">
+          <div class="layui-input-block" style="text-align: center;">
             <button type="submit" class="layui-btn" id="btn_submit">
               提交
             </button>
@@ -278,6 +346,7 @@
               type="button"
               class="layui-btn layui-btn-primary"
               id="btn_cancel"
+              style="margin-left: 10px;"
             >
               取消
             </button>
@@ -461,18 +530,26 @@
 
     <!-- toolbar 模板 -->
     <script id="ID_tpl_toolbar" type="text/html">
-      <a
-        class="layui-btn"
-        lay-event="play"
-        style="background-color: #16baaa; height: 26px;line-height: 26px;"
-        >预览</a
-      >
-      <a
-        class="layui-btn"
-        lay-event="del"
-        style="background-color: #ff5722; height: 26px;line-height: 26px;"
-        >关闭</a
-      >
+      <div style="display: flex; gap: 5px;">
+        <a
+          class="layui-btn"
+          lay-event="play"
+          style="background-color: #16baaa; height: 26px;line-height: 26px; padding: 0 10px;"
+          >预览</a
+        >
+        <a
+          class="layui-btn"
+          lay-event="edit"
+          style="background-color: #31bdec; height: 26px;line-height: 26px; padding: 0 10px;"
+          >修改</a
+        >
+        <a
+          class="layui-btn"
+          lay-event="del"
+          style="background-color: #ff5722; height: 26px;line-height: 26px; padding: 0 10px;"
+          >关闭</a
+        >
+      </div>
     </script>
 
     <!-- player 模板 -->
@@ -1169,101 +1246,566 @@
                 },
               });
             }
-          }
-        });
+          } else if (layEvent === "edit") {
+            // 修改拉流配置
+            // 先从数据库获取详细配置
+            $.ajax({
+              url: "/api/stream/pull-proxy-list-db",
+              type: "GET",
+              dataType: "json",
+              success: function (res) {
+                if (res.code === 0) {
+                  let streamConfig = res.data.find(
+                    item => item.app === data.app && item.stream === data.stream
+                  );
+                  
+                  if (streamConfig) {
+                    // 打印streamConfig对象，用于调试
+                    console.log('streamConfig:', streamConfig);
+                    // 打开修改窗口
+                    layer.open({
+                      type: 1,
+                      title: "修改拉流配置",
+                      area: ["700px", "400px"],
+                      content: $("#ID_tpl_pull_url").html(),
+                      shadeClose: true,
+                      btn: null,
+                      success: function (layero, index) {
+                        // 填充表单数据
+                        let $form = layero.find("#ID_active_pull_form");
+                        // 设置基本配置参数为只读
+                        $form.find("[name='vhost']").val(streamConfig.vhost).attr("readonly", "readonly");
+                        $form.find("[name='app']").val(streamConfig.app).attr("readonly", "readonly");
+                        $form.find("[name='stream']").val(streamConfig.stream).attr("readonly", "readonly");
+                        $form.find("[name='url']").val(streamConfig.url).attr("readonly", "readonly");
+                        
+                        // 填充高级配置参数
+                        // 音频设置
+                        $form.find("[name='enable_audio']").prop("checked", streamConfig.enable_audio === 1);
+                        $form.find("[name='add_mute_audio']").prop("checked", streamConfig.add_mute_audio === 1);
+                        
+                        // RTP传输
+                        if (streamConfig.rtp_type !== undefined) {
+                          $form.find("[name='rtp_type']").val(streamConfig.rtp_type);
+                        }
+                        
+                        // 拉流配置
+                        $form.find("[name='timeout_sec']").val(streamConfig.timeout_sec || 15);
+                        $form.find("[name='retry_count']").val(streamConfig.retry_count || -1);
+                        
+                        // 分发协议
+                        $form.find("[name='enable_rtsp']").prop("checked", streamConfig.enable_rtsp === 1);
+                        $form.find("[name='enable_rtmp']").prop("checked", streamConfig.enable_rtmp === 1);
+                        $form.find("[name='enable_hls']").prop("checked", streamConfig.enable_hls === 1);
+                        $form.find("[name='enable_ts']").prop("checked", streamConfig.enable_ts === 1);
+                        $form.find("[name='enable_fmp4']").prop("checked", streamConfig.enable_fmp4 === 1);
+                        $form.find("[name='enable_hls_fmp4']").prop("checked", streamConfig.enable_hls_fmp4 === 1);
+                        
+                        // 按需模式
+                        $form.find("[name='rtsp_demand']").prop("checked", streamConfig.rtsp_demand === 1);
+                        $form.find("[name='rtmp_demand']").prop("checked", streamConfig.rtmp_demand === 1);
+                        $form.find("[name='hls_demand']").prop("checked", streamConfig.hls_demand === 1);
+                        $form.find("[name='ts_demand']").prop("checked", streamConfig.ts_demand === 1);
+                        $form.find("[name='fmp4_demand']").prop("checked", streamConfig.fmp4_demand === 1);
+                        
+                        // MP4录制
+                        $form.find("[name='enable_mp4']").prop("checked", streamConfig.enable_mp4 === 1);
+                        $form.find("[name='mp4_as_player']").prop("checked", streamConfig.mp4_as_player === 1);
+                        $form.find("[name='mp4_max_second']").val(streamConfig.mp4_max_second || 30);
+                        
+                        // 其他配置
+                        if (streamConfig.modify_stamp !== undefined) {
+                          $form.find("[name='modify_stamp']").val(streamConfig.modify_stamp);
+                        }
+                        $form.find("[name='auto_close']").prop("checked", streamConfig.auto_close === 1);
+                        
+                        // 渲染 layui 表单控件
+                        form.render();
 
-        // 监听直播流接入按钮
-        $("#ID_pull_url_btn").on("click", function () {
-          layer.open({
-            type: 1,
-            title: "直播流接入",
-            area: ["700px", "400px"],
-            content: $("#ID_tpl_pull_url").html(),
-            shadeClose: true,
-            btn: null,
-            success: function (layero, index) {
-              // 渲染 layui 表单控件（如下拉框、开关）
-              form.render();
+                        // 高级配置默认展开，且不可以折叠
+                        let body = layero.find("#advanced_config_body");
+                        let icon = layero.find("#advanced_config_icon");
+                        let header = layero.find("#advanced_config_header");
+                        body.show();
+                        icon.removeClass("layui-icon-down").addClass("layui-icon-up");
+                        // 移除点击事件，使高级配置不可以折叠
+                        header.off("click");
+                        // 修改样式，使其看起来不可点击
+                        header.css({"cursor": "default", "pointer-events": "none"});
 
-              // 表单提交
-              layero.find("#btn_submit").on("click", function (e) {
-                e.preventDefault(); // 阻止默认提交（防止页面刷新）
+                        // 表单提交
+                        layero.find("#btn_submit").on("click", function (e) {
+                          e.preventDefault(); // 阻止默认提交（防止页面刷新）
 
-                // 获取表单
-                let $form = layero.find("#ID_active_pull_form");
+                          // 获取表单
+                          let $form = layero.find("#ID_active_pull_form");
 
-                // 必填项验证
-                let isValid = true;
-                $form.find("input[required]").each(function () {
-                  let val = $(this).val();
-                  if (!val || val.trim() === "") {
-                    let placeholder = $(this).attr("placeholder") || "该字段";
+                          // 必填项验证
+                          let isValid = true;
+                          $form.find("input[required]").each(function () {
+                            let val = $(this).val();
+                            if (!val || val.trim() === "") {
+                              let placeholder = $(this).attr("placeholder") || "该字段";
 
-                    layer.msg("⚠️ 请填写：" + placeholder, {
+                              layer.msg("⚠️ 请填写：" + placeholder, {
+                                time: 1500,
+                                offset: "t",
+                                shift: 1,
+                              });
+
+                              $(this).focus();
+                              isValid = false;
+                              return false; // 跳出 each 循环
+                            }
+                          });
+                          if (!isValid) return false;
+
+                          let formData = {};
+                          $form.find("input, select").each(function () {
+                            let $el = $(this);
+                            let name = $el.attr("name");
+                            if (!name) return true;
+
+                            let value;
+                            if ($el.is(":checkbox")) {
+                              value = $el.is(":checked") ? "1" : "0";
+                            } else {
+                              value = $el.val();
+                            }
+
+                            formData[name] = value;
+                          });
+
+                          // 构建请求URL，包含所有参数
+                          let urlParams = new URLSearchParams();
+                          for (let key in formData) {
+                            urlParams.append(key, formData[key]);
+                          }
+
+                          $.ajax({
+                            url: `/api/stream/pull-proxy?${urlParams.toString()}`,
+                            type: "POST",
+                            timeout: 5000,
+                            success: function (res) {
+                              if (res.code === 0) {
+                                layer.msg("✅ 修改成功", {
+                                  time: 1500,
+                                  offset: "t",
+                                  shift: 1,
+                                });
+                                setTimeout(() => {
+                                  layer.close(index);
+                                }, 300);
+                              } else {
+                                layer.msg("⚠️ " + res.msg, {
+                                  time: 1500,
+                                  offset: "t",
+                                  shift: 1,
+                                });
+                              }
+                            },
+                          });
+                        });
+
+                        // 绑定取消按钮事件
+                        layero.find("#btn_cancel").on("click", function () {
+                          layer.close(index);
+                        });
+                      },
+                      end: function () {
+                        // 监听弹窗关闭就刷新表格
+                        setTimeout(() => {
+                          renderTable();
+                        }, 300);
+                      },
+                    });
+                  } else {
+                    layer.msg("⚠️ 未找到该流的详细配置", {
                       time: 1500,
                       offset: "t",
                       shift: 1,
                     });
-
-                    $(this).focus();
-                    isValid = false;
-                    return false; // 跳出 each 循环
                   }
+                }
+              },
+              error: function () {
+                layer.msg("❌ 获取配置失败", {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
                 });
-                if (!isValid) return false;
+              }
+            });
+          }
+        });
 
-                let formData = {};
-                $form.find("input, select").each(function () {
-                  let $el = $(this);
-                  let name = $el.attr("name");
-                  if (!name) return true;
-
-                  let value;
-                  if ($el.is(":checkbox")) {
-                    value = $el.is(":checked") ? "true" : "false";
+        // 监听更新按钮
+        $("#ID_pull_update_btn").on("click", function () {
+          layer.confirm(
+            "此操作会把数据库中的拉流信息整体更新给ZLMediaKit服务器，确定继续吗？",
+            {
+              title: "提示",
+              btn: ["确定", "取消"]
+            },
+            function (index) {
+              layer.close(index);
+              
+              // 显示加载动画
+              let loading = layer.load(2, { shade: [0.1, "#fff"] });
+              
+              // 发送更新请求
+              $.ajax({
+                url: "/api/stream/pull-proxy-load",
+                type: "POST",
+                dataType: "json",
+                success: function (res) {
+                  layer.close(loading);
+                  if (res.code === 0) {
+                    layer.msg("✅ 更新成功" + res.msg, {
+                      time: 2000,
+                      offset: "t",
+                      shift: 1,
+                    });
+                    // 刷新表格
+                    setTimeout(() => {
+                      renderTable();
+                    }, 500);
                   } else {
-                    value = $el.val();
+                    layer.msg("❌ 更新失败：" + res.msg, {
+                      time: 1500,
+                      offset: "t",
+                      shift: 1,
+                    });
                   }
+                },
+                error: function () {
+                  layer.close(loading);
+                  layer.msg("❌ 网络请求失败", {
+                    time: 1500,
+                    offset: "t",
+                    shift: 1,
+                  });
+                }
+              });
+            }
+          );
+        });
 
-                  formData[name] = value;
+        // 监听导出按钮
+        $("#ID_pull_export_btn").on("click", function () {
+          $.ajax({
+            url: "/api/stream/pull-proxy-export",
+            type: "GET",
+            dataType: "json",
+            success: function (res) {
+              if (res.code === 0) {
+                // 创建下载链接
+                let blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
+                let url = URL.createObjectURL(blob);
+                let link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", `pull-streams-${new Date().getTime()}.csv`);
+                link.style.visibility = "hidden";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                layer.msg("✅ 导出成功", {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
                 });
+              } else {
+                layer.msg("❌ 导出失败：" + res.msg, {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
+                });
+              }
+            },
+            error: function () {
+              layer.msg("❌ 网络请求失败", {
+                time: 1500,
+                offset: "t",
+                shift: 1,
+              });
+            }
+          });
+        });
 
-                $.ajax({
-                  url: `/api/stream/pull-proxy?app=${formData.app}&stream=${formData.stream}&url=${formData.url}&audio_type=${formData.audio_type}`,
-                  type: "POST",
-                  timeout: 5000,
-                  success: function (res) {
-                    if (res.code === 0) {
-                      layer.msg("✅ 添加成功", {
-                        time: 1500,
-                        offset: "t",
-                        shift: 1,
-                      });
-                      setTimeout(() => {
-                        layer.close(index);
-                      }, 300);
-                    } else {
-                      layer.msg("⚠️ " + res.msg, {
-                        time: 1500,
-                        offset: "t",
-                        shift: 1,
-                      });
+        // 监听导入按钮
+        $("#ID_pull_import_btn").on("click", function () {
+          // 创建导入窗口
+          layer.open({
+            type: 1,
+            title: "导入拉流配置",
+            area: ["600px", "auto"],
+            content: `
+              <div style="padding: 20px;">
+                <p style="margin-bottom: 20px;">请选择要导入的CSV文件，导入后会覆盖现有配置</p>
+                <input type="file" id="import_file" accept=".csv" style="margin-bottom: 20px;">
+                <div style="color: #999; font-size: 12px;">
+                  提示：导入的CSV文件必须包含app、stream、url等必要字段
+                </div>
+              </div>
+            `,
+            btn: ["确定导入", "取消"],
+            btn1: function (index) {
+              let fileInput = document.getElementById("import_file");
+              let file = fileInput.files[0];
+              
+              if (!file) {
+                layer.msg("⚠️ 请选择CSV文件", {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
+                });
+                return false;
+              }
+              
+              // 读取文件内容
+              let reader = new FileReader();
+              reader.onload = function (e) {
+                let csvContent = e.target.result;
+                
+                // 显示确认对话框
+                layer.confirm(
+                  "此操作会把文件中的配置整体更新给ZLMediaKit服务器，确定继续吗？",
+                  {
+                    title: "提示",
+                    btn: ["确定", "取消"]
+                  },
+                  function (confirmIndex) {
+                    layer.close(confirmIndex);
+                    
+                    // 显示加载动画
+                    let loading = layer.load(2, { shade: [0.1, "#fff"] });
+                    
+                    // 发送导入请求
+                    $.ajax({
+                      url: "/api/stream/pull-proxy-import",
+                      type: "POST",
+                      contentType: "application/json",
+                      data: JSON.stringify({ csv_content: csvContent }),
+                      dataType: "json",
+                      success: function (res) {
+                        layer.close(loading);
+                        if (res.code === 0) {
+                          layer.msg("✅ 导入成功" + res.msg, {
+                            time: 2000,
+                            offset: "t",
+                            shift: 1,
+                          });
+                          // 刷新表格
+                          setTimeout(() => {
+                            renderTable();
+                          }, 500);
+                        } else {
+                          layer.msg("❌ 导入失败：" + res.msg, {
+                            time: 1500,
+                            offset: "t",
+                            shift: 1,
+                          });
+                        }
+                      },
+                      error: function () {
+                        layer.close(loading);
+                        layer.msg("❌ 网络请求失败", {
+                          time: 1500,
+                          offset: "t",
+                          shift: 1,
+                        });
+                      }
+                    });
+                  }
+                );
+              };
+              reader.readAsText(file);
+              
+              layer.close(index);
+            }
+          });
+        });
+
+        // 监听直播流接入按钮
+        $("#ID_pull_url_btn").on("click", function () {
+          // 先获取默认配置
+          $.ajax({
+            url: "/api/stream/default-configs",
+            type: "GET",
+            dataType: "json",
+            success: function (res) {
+              if (res.code === 0) {
+                let defaultConfigs = res.data;
+                
+                layer.open({
+                  type: 1,
+                  title: "直播流接入",
+                  area: ["800px", "700px"],
+                  content: $("#ID_tpl_pull_url").html(),
+                  shadeClose: true,
+                  btn: null,
+                  success: function (layero, index) {
+                    let $form = layero.find("#ID_active_pull_form");
+                    
+                    // 填充默认配置参数
+                    // 基本配置
+                    $form.find("[name='vhost']").val(defaultConfigs.vhost || "__defaultVhost__");
+                    $form.find("[name='app']").val(defaultConfigs.app || "live");
+                    
+                    // 高级配置
+                    // 音频设置
+                    $form.find("[name='enable_audio']").prop("checked", defaultConfigs.enable_audio === "1");
+                    $form.find("[name='add_mute_audio']").prop("checked", defaultConfigs.add_mute_audio === "1");
+                    
+                    // RTP传输
+                    if (defaultConfigs.rtp_type !== undefined) {
+                      $form.find("[name='rtp_type']").val(defaultConfigs.rtp_type);
                     }
+                    
+                    // 拉流配置
+                    $form.find("[name='timeout_sec']").val(defaultConfigs.timeout_sec || 15);
+                    $form.find("[name='retry_count']").val(defaultConfigs.retry_count || -1);
+                    
+                    // 分发协议
+                    $form.find("[name='enable_rtsp']").prop("checked", defaultConfigs.enable_rtsp === "1");
+                    $form.find("[name='enable_rtmp']").prop("checked", defaultConfigs.enable_rtmp === "1");
+                    $form.find("[name='enable_hls']").prop("checked", defaultConfigs.enable_hls === "1");
+                    $form.find("[name='enable_ts']").prop("checked", defaultConfigs.enable_ts === "1");
+                    $form.find("[name='enable_fmp4']").prop("checked", defaultConfigs.enable_fmp4 === "1");
+                    $form.find("[name='enable_hls_fmp4']").prop("checked", defaultConfigs.enable_hls_fmp4 === "1");
+                    
+                    // 按需模式
+                    $form.find("[name='rtsp_demand']").prop("checked", defaultConfigs.rtsp_demand === "1");
+                    $form.find("[name='rtmp_demand']").prop("checked", defaultConfigs.rtmp_demand === "1");
+                    $form.find("[name='hls_demand']").prop("checked", defaultConfigs.hls_demand === "1");
+                    $form.find("[name='ts_demand']").prop("checked", defaultConfigs.ts_demand === "1");
+                    $form.find("[name='fmp4_demand']").prop("checked", defaultConfigs.fmp4_demand === "1");
+                    
+                    // MP4录制
+                    $form.find("[name='enable_mp4']").prop("checked", defaultConfigs.enable_mp4 === "1");
+                    $form.find("[name='mp4_as_player']").prop("checked", defaultConfigs.mp4_as_player === "1");
+                    $form.find("[name='mp4_max_second']").val(defaultConfigs.mp4_max_second || 30);
+                    
+                    // 其他配置
+                    if (defaultConfigs.modify_stamp !== undefined) {
+                      $form.find("[name='modify_stamp']").val(defaultConfigs.modify_stamp);
+                    }
+                    $form.find("[name='auto_close']").prop("checked", defaultConfigs.auto_close === "1");
+                    
+                    // 渲染 layui 表单控件（如下拉框、开关）
+                    form.render();
+
+                    // 高级配置默认显示，无展开折叠功能
+                    let body = layero.find("#advanced_config_body");
+                    let icon = layero.find("#advanced_config_icon");
+                    let header = layero.find("#advanced_config_header");
+                    body.show();
+                    icon.removeClass("layui-icon-down").addClass("layui-icon-up");
+                    // 修改样式，使其看起来不可点击
+                    header.css({"cursor": "default", "pointer-events": "none"});
+
+                    // 表单提交
+                    layero.find("#btn_submit").on("click", function (e) {
+                      e.preventDefault(); // 阻止默认提交（防止页面刷新）
+
+                      // 获取表单
+                      let $form = layero.find("#ID_active_pull_form");
+
+                      // 必填项验证
+                      let isValid = true;
+                      $form.find("input[required]").each(function () {
+                        let val = $(this).val();
+                        if (!val || val.trim() === "") {
+                          let placeholder = $(this).attr("placeholder") || "该字段";
+
+                          layer.msg("⚠️ 请填写：" + placeholder, {
+                            time: 1500,
+                            offset: "t",
+                            shift: 1,
+                          });
+
+                          $(this).focus();
+                          isValid = false;
+                          return false; // 跳出 each 循环
+                        }
+                      });
+                      if (!isValid) return false;
+
+                      let formData = {};
+                      $form.find("input, select").each(function () {
+                        let $el = $(this);
+                        let name = $el.attr("name");
+                        if (!name) return true;
+
+                        let value;
+                        if ($el.is(":checkbox")) {
+                          value = $el.is(":checked") ? "1" : "0";
+                        } else {
+                          value = $el.val();
+                        }
+
+                        formData[name] = value;
+                      });
+
+                      // 构建请求URL
+                      let urlParams = new URLSearchParams();
+                      for (let key in formData) {
+                        urlParams.append(key, formData[key]);
+                      }
+
+                      $.ajax({
+                        url: `/api/stream/pull-proxy?${urlParams.toString()}`,
+                        type: "POST",
+                        timeout: 5000,
+                        success: function (res) {
+                          if (res.code === 0) {
+                            layer.msg("✅ 添加成功", {
+                              time: 1500,
+                              offset: "t",
+                              shift: 1,
+                            });
+                            setTimeout(() => {
+                              layer.close(index);
+                            }, 300);
+                          } else {
+                            layer.msg("⚠️ " + res.msg, {
+                              time: 1500,
+                              offset: "t",
+                              shift: 1,
+                            });
+                          }
+                        },
+                      });
+                    });
+
+                    // 绑定取消按钮事件
+                    layero.find("#btn_cancel").on("click", function () {
+                      layer.close(index);
+                    });
+                  },
+                  end: function () {
+                    // 监听弹窗关闭就刷新表格
+                    setTimeout(() => {
+                      renderTable();
+                    }, 300);
                   },
                 });
-              });
-
-              // 绑定取消按钮事件
-              layero.find("#btn_cancel").on("click", function () {
-                layer.close(index);
-              });
+              } else {
+                layer.msg("⚠️ 获取默认配置失败：" + res.msg, {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
+                });
+              }
             },
-            end: function () {
-              // 监听弹窗关闭就刷新表格
-              setTimeout(() => {
-                renderTable();
-              }, 300);
-            },
+            error: function () {
+              layer.msg("❌ 网络请求失败", {
+                time: 1500,
+                offset: "t",
+                shift: 1,
+              });
+            }
           });
         });
 
