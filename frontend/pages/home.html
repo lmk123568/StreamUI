@@ -275,7 +275,14 @@
                 },
                 tooltip: {
                   trigger: "axis",
-                  formatter: "{b}: {c}%", // 统一格式：时间: 数值%
+                  formatter: function (params) {
+                    const p = Array.isArray(params) ? params[0] : params;
+                    const time =
+                      (p && (p.axisValue != null ? p.axisValue : p.name)) || "";
+                    const cpu =
+                      p && (p.value != null ? p.value : p.data != null ? p.data : "");
+                    return time + "<br/>CPU负载: " + cpu + "%";
+                  },
                 },
                 legend: {
                   data: ["CPU"],
@@ -335,7 +342,29 @@
                 },
                 tooltip: {
                   trigger: "axis",
-                  formatter: "{b}: {c} GB", // 显示格式为 时间: 使用量 GB
+                  formatter: function (params) {
+                    const p = Array.isArray(params) ? params[0] : params;
+                    const idx = p && p.dataIndex != null ? p.dataIndex : 0;
+                    const item = dataList[idx] || {};
+                    const mem = item.memory || {};
+                    const total = parseFloat(mem.total);
+                    const used = parseFloat(mem.used);
+                    const free = total - used;
+                    const fmt = (n) => (Number.isFinite(n) ? n.toFixed(1) : "-");
+                    const time =
+                      item.time ||
+                      ((p && (p.axisValue != null ? p.axisValue : p.name)) || "");
+                    return (
+                      time +
+                      "<br/>总内存量: " +
+                      fmt(total) +
+                      " GB<br/>已用: " +
+                      fmt(used) +
+                      " GB<br/>剩余: " +
+                      fmt(free) +
+                      " GB"
+                    );
+                  },
                 },
                 legend: {
                   data: ["已用内存"],
@@ -503,7 +532,6 @@
                     var free = diskFreeList[idx] || 0;
                     var name = diskNames[idx] || "磁盘";
                     return (
-                      "设备: " +
                       name +
                       "<br/>总容量: " +
                       total.toFixed(1) +
@@ -538,9 +566,9 @@
                 // 只有时间差在合理范围（例如 2.5 ~ 3.5 秒）才计算
                 if (timeDiffSec >= 2.5 && timeDiffSec <= 3.5) {
                   const bytesRecvDiff =
-                    dataList[i].network.recv - dataList[i - 1].network.recv;
+                    dataList[i].net_io.recv - dataList[i - 1].net_io.recv;
                   const bytesSentDiff =
-                    dataList[i].network.sent - dataList[i - 1].network.sent;
+                    dataList[i].net_io.sent - dataList[i - 1].net_io.sent;
 
                   // 避免负值（理论上不会出现，但防御性编程）
                   if (bytesRecvDiff < 0 || bytesSentDiff < 0) continue;

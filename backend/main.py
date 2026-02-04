@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -11,7 +12,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from onvif.api import router as onvif_router
+from db import delete_pull_proxy as db_delete_pull_proxy
+from db import init_db as db_init
+from db import list_pull_proxies as db_list_pull_proxies
+from db import upsert_pull_proxy as db_upsert_pull_proxy
 from scheduler import cleanup_old_videos
 from utils import get_video_shanghai_time, get_zlm_secret
 
@@ -31,6 +35,9 @@ KEEP_VIDEOS = 72
 async def lifespan(app: FastAPI):
     scheduler = AsyncIOScheduler()
 
+    db_init()
+    asyncio.create_task(sync_pull_proxies_from_db())
+
     # 添加任务：每小时整点执行
     scheduler.add_job(
         cleanup_old_videos,
@@ -48,6 +55,7 @@ async def lifespan(app: FastAPI):
     yield
 
     scheduler.shutdown()
+    await client.aclose()
     print("[Scheduler] 🛑 定时任务已取消")
 
 
@@ -92,6 +100,101 @@ client = httpx.AsyncClient(
 )
 
 
+def _audio_type_to_zlm_params(audio_type: int | None) -> dict[str, str]:
+    if audio_type == 0:
+        return {"enable_audio": "0", "add_mute_audio": "0"}
+    if audio_type == 1:
+        return {"enable_audio": "1", "add_mute_audio": "0"}
+    if audio_type == 2:
+        return {"enable_audio": "1", "add_mute_audio": "1"}
+    return {}
+
+
+def _stream_proxy_key(vhost: str, app: str, stream: str) -> str:
+    return f"{vhost}/{app}/{stream}"
+
+
+async def _add_stream_proxy_to_zlm(
+    *,
+    vhost: str,
+    app: str,
+    stream: str,
+    url: str,
+    audio_type: int | None,
+) -> None:
+    query_params = {
+        "secret": ZLM_SECRET,
+        "vhost": vhost,
+        "app": app,
+        "stream": stream,
+        "url": url,
+    }
+    query_params.update(_audio_type_to_zlm_params(audio_type))
+    try:
+        await client.get(f"{ZLM_SERVER}/index/api/addStreamProxy", params=query_params)
+    except Exception:
+        return
+
+
+async def _del_stream_proxy_from_zlm(*, vhost: str, app: str, stream: str) -> None:
+    query_params = {"secret": ZLM_SECRET}
+    query_params["key"] = _stream_proxy_key(vhost, app, stream)
+    try:
+        await client.get(f"{ZLM_SERVER}/index/api/delStreamProxy", params=query_params)
+    except Exception:
+        return
+
+
+async def sync_pull_proxies_from_db() -> None:
+    rows = db_list_pull_proxies()
+    if not rows:
+        return
+
+    existing_keys: set[str] = set()
+    try:
+        query_params = {"secret": ZLM_SECRET}
+        response = await client.get(
+            f"{ZLM_SERVER}/index/api/listStreamProxy", params=query_params
+        )
+        raw_data = response.json()
+        if raw_data.get("code") == 0:
+            for item in raw_data.get("data", []) or []:
+                if isinstance(item, dict) and item.get("key"):
+                    existing_keys.add(str(item["key"]))
+                    continue
+                src = (item or {}).get("src") or {}
+                vhost = src.get("vhost")
+                app = src.get("app")
+                stream = src.get("stream")
+                if vhost and app and stream:
+                    existing_keys.add(_stream_proxy_key(vhost, app, stream))
+    except Exception:
+        existing_keys = set()
+
+    for row in rows:
+        vhost = row["vhost"]
+        app = row["app"]
+        stream = row["stream"]
+        key = _stream_proxy_key(vhost, app, stream)
+        if key in existing_keys:
+            continue
+
+        query_params = {
+            "secret": ZLM_SECRET,
+            "vhost": vhost,
+            "app": app,
+            "stream": stream,
+            "url": row["url"],
+        }
+        query_params.update(_audio_type_to_zlm_params(row.get("audio_type")))
+        try:
+            await client.get(
+                f"{ZLM_SERVER}/index/api/addStreamProxy", params=query_params
+            )
+        except Exception:
+            continue
+
+
 # =============================================================================
 
 
@@ -124,8 +227,8 @@ async def get_threads_load():
 
 @app.get(
     "/api/perf/host-stats",
-    tags=["性能"],
     summary="获取当前系统资源使用率",
+    tags=["性能"],
 )
 async def get_host_stats():
     timestamp = datetime.now().strftime("%H:%M:%S")
@@ -133,14 +236,14 @@ async def get_host_stats():
     # CPU 使用率
     cpu_percent = psutil.cpu_percent(interval=None)
 
-    # 内存
+    # 内存使用率
     memory = psutil.virtual_memory()
     memory_info = {
         "used": round(memory.used / (1024**3), 2),
         "total": round(memory.total / (1024**3), 2),
     }
 
-    # 磁盘（按设备聚合，避免重复）
+    # 磁盘使用率
     disks: list[dict] = []
     seen_devices: set[str] = set()
     try:
@@ -186,11 +289,11 @@ async def get_host_stats():
             "total": round(disk.total / (1024**3), 2),
         }
 
-    # 网络
-    net = psutil.net_io_counters()
-    net_info = {
-        "sent": net.bytes_sent,
-        "recv": net.bytes_recv,
+    # 带宽使用率
+    net_io = psutil.net_io_counters()
+    net_io = {
+        "sent": round(net_io.bytes_sent / (1024**2), 2),
+        "recv": round(net_io.bytes_recv / (1024**2), 2),
     }
 
     return {
@@ -201,13 +304,13 @@ async def get_host_stats():
             "memory": memory_info,
             "disk": disk_info,
             "disks": disks,
-            "network": net_info,
+            "net_io": net_io,
         },
     }
 
 
 # =============================================================================
-@app.post("/api/stream/pull-proxy", tags=["流"], summary="添加拉流代理")
+@app.post("/api/stream/pull-proxy", summary="添加拉流代理", tags=["流"])
 async def post_pull_proxy(
     vhost: str = Query("__defaultVhost__", description="虚拟主机"),
     app: str = Query(..., description="应用名"),
@@ -236,30 +339,25 @@ async def post_pull_proxy(
             "msg": "源流地址必须以 rtsp://、rtmp://、http:// 或 https:// 开头",
         }
 
-    # 构造转发请求
-    query_params = {
-        "secret": ZLM_SECRET,
-        "vhost": vhost,
-        "app": app,
-        "stream": stream,
-        "url": url,
-    }
-
-    # 处理 audio_type 映射
-    if audio_type == 0:
-        query_params["enable_audio"] = "0"
-        query_params["add_mute_audio"] = "0"
-    elif audio_type == 1:
-        query_params["enable_audio"] = "1"
-        query_params["add_mute_audio"] = "0"
-    elif audio_type == 2:
-        query_params["enable_audio"] = "1"
-        query_params["add_mute_audio"] = "1"
-
-    response = await client.get(
-        f"{ZLM_SERVER}/index/api/addStreamProxy", params=query_params
+    db_row = db_upsert_pull_proxy(
+        vhost=vhost,
+        app=app,
+        stream=stream,
+        url=url,
+        audio_type=audio_type,
     )
-    return response.json()
+
+    asyncio.create_task(
+        _add_stream_proxy_to_zlm(
+            vhost=vhost,
+            app=app,
+            stream=stream,
+            url=url,
+            audio_type=audio_type,
+        )
+    )
+
+    return {"code": 0, "msg": "已保存，后台连接中", "db": db_row}
 
 
 @app.delete("/api/stream/pull-proxy", summary="删除拉流代理", tags=["流"])
@@ -268,25 +366,175 @@ async def delete_pull_proxy(
     app: str = Query(..., description="应用名"),
     stream: str = Query(..., description="流id"),
 ):
-    query_params = {"secret": ZLM_SECRET}
-    query_params["key"] = f"{vhost}/{app}/{stream}"
-
-    response = await client.get(
-        f"{ZLM_SERVER}/index/api/delStreamProxy", params=query_params
-    )
-    return response.json()
+    deleted = db_delete_pull_proxy(vhost=vhost, app=app, stream=stream)
+    asyncio.create_task(_del_stream_proxy_from_zlm(vhost=vhost, app=app, stream=stream))
+    return {"code": 0, "msg": "已删除，后台同步中", "db_deleted": deleted}
 
 
-@app.get("/api/stream/pull-proxy-list", summary="获取拉流代理列表", tags=["流"])
-async def get_pull_proxy_list():
-    query_params = {"secret": ZLM_SECRET}
-    response = await client.get(
-        f"{ZLM_SERVER}/index/api/listStreamProxy", params=query_params
-    )
-    return response.json()
+# @app.get("/api/stream/pull-proxy-list", summary="获取拉流代理列表", tags=["流"])
+# async def get_pull_proxy_list():
+#     rows = db_list_pull_proxies()
+
+#     repull_count_map: dict[str, int] = {}
+#     try:
+#         query_params = {"secret": ZLM_SECRET}
+#         response = await client.get(
+#             f"{ZLM_SERVER}/index/api/listStreamProxy", params=query_params
+#         )
+#         raw_data = response.json()
+#         if raw_data.get("code") == 0:
+#             for item in raw_data.get("data", []) or []:
+#                 src = (item or {}).get("src") or {}
+#                 vhost = src.get("vhost")
+#                 app = src.get("app")
+#                 stream = src.get("stream")
+#                 if not (vhost and app and stream):
+#                     continue
+#                 key = _stream_proxy_key(vhost, app, stream)
+#                 try:
+#                     repull_count_map[key] = int(item.get("rePullCount", 0) or 0)
+#                 except Exception:
+#                     repull_count_map[key] = 0
+#     except Exception:
+#         repull_count_map = {}
+
+#     data: list[dict] = []
+#     for row in rows:
+#         vhost = row["vhost"]
+#         app = row["app"]
+#         stream = row["stream"]
+#         key = _stream_proxy_key(vhost, app, stream)
+#         data.append(
+#             {
+#                 "key": key,
+#                 "src": {"vhost": vhost, "app": app, "stream": stream},
+#                 "url": row["url"],
+#                 "rePullCount": repull_count_map.get(key, 0),
+#                 "audio_type": row.get("audio_type"),
+#             }
+#         )
+
+#     return {"code": 0, "data": data}
 
 
-@app.get("/api/stream/streamid-list", summary="获取当前在线流ID列表", tags=["流"])
+@app.get(
+    "/api/stream/pull-proxy-table",
+    summary="获取拉流列表（含在线状态）",
+    tags=["流"],
+)
+async def get_pull_proxy_table(
+    vhost: str = Query("__defaultVhost__", description="筛选虚拟主机"),
+    app: str | None = Query(None, description="筛选应用名"),
+    stream: str | None = Query(None, description="筛选流id"),
+):
+    rows = db_list_pull_proxies()
+    if vhost:
+        rows = [r for r in rows if r.get("vhost") == vhost]
+    if app:
+        rows = [r for r in rows if app in str(r.get("app", ""))]
+    if stream:
+        rows = [r for r in rows if stream in str(r.get("stream", ""))]
+
+    repull_count_map: dict[str, int] = {}
+    active_stream_map: dict[str, dict] = {}
+
+    try:
+        list_params = {"secret": ZLM_SECRET}
+        media_params = {"secret": ZLM_SECRET, "vhost": vhost}
+        list_resp, media_resp = await asyncio.gather(
+            client.get(f"{ZLM_SERVER}/index/api/listStreamProxy", params=list_params),
+            client.get(f"{ZLM_SERVER}/index/api/getMediaList", params=media_params),
+        )
+
+        list_raw = list_resp.json()
+        if list_raw.get("code") == 0:
+            for item in list_raw.get("data", []) or []:
+                src = (item or {}).get("src") or {}
+                src_vhost = src.get("vhost")
+                src_app = src.get("app")
+                src_stream = src.get("stream")
+                if not (src_vhost and src_app and src_stream):
+                    continue
+                key = _stream_proxy_key(src_vhost, src_app, src_stream)
+                try:
+                    repull_count_map[key] = int(item.get("rePullCount", 0) or 0)
+                except Exception:
+                    repull_count_map[key] = 0
+
+        media_raw = media_resp.json()
+        if media_raw.get("code") == 0:
+            for media in media_raw.get("data", []) or []:
+                if not isinstance(media, dict):
+                    continue
+                if media.get("originTypeStr") != "pull":
+                    continue
+
+                media_vhost = str(media.get("vhost", ""))
+                media_app = str(media.get("app", ""))
+                media_stream = str(media.get("stream", ""))
+                if not (media_vhost and media_app and media_stream):
+                    continue
+
+                key = _stream_proxy_key(media_vhost, media_app, media_stream)
+                if key not in active_stream_map:
+                    active_stream_map[key] = {
+                        "vhost": media_vhost,
+                        "app": media_app,
+                        "stream": media_stream,
+                        "originTypeStr": media.get("originTypeStr"),
+                        "originUrl": media.get("originUrl"),
+                        "originSock": media.get("originSock"),
+                        "aliveSecond": media.get("aliveSecond"),
+                        "isRecordingMP4": media.get("isRecordingMP4"),
+                        "isRecordingHLS": media.get("isRecordingHLS"),
+                        "totalReaderCount": media.get("totalReaderCount"),
+                        "schemas": [],
+                    }
+
+                active_stream_map[key]["schemas"].append(
+                    {
+                        "schema": media.get("schema"),
+                        "bytesSpeed": media.get("bytesSpeed"),
+                        "readerCount": media.get("readerCount"),
+                        "totalBytes": media.get("totalBytes"),
+                        "tracks": media.get("tracks", []),
+                    }
+                )
+    except Exception:
+        repull_count_map = {}
+        active_stream_map = {}
+
+    data: list[dict] = []
+    for row in rows:
+        row_vhost = str(row.get("vhost", "__defaultVhost__"))
+        row_app = str(row.get("app", ""))
+        row_stream = str(row.get("stream", ""))
+        key = _stream_proxy_key(row_vhost, row_app, row_stream)
+        active = active_stream_map.get(key)
+        data.append(
+            {
+                "vhost": row_vhost,
+                "app": row_app,
+                "stream": row_stream,
+                "url": row.get("url"),
+                "audio_type": row.get("audio_type"),
+                "rePullCount": repull_count_map.get(key, 0),
+                "isOnline": bool(active),
+                "totalReaderCount": active.get("totalReaderCount") if active else "-",
+                "aliveSecond": active.get("aliveSecond") if active else "-",
+                "isRecordingMP4": active.get("isRecordingMP4") if active else "-",
+                "schemas": active.get("schemas") if active else "-",
+            }
+        )
+
+    return {"code": 0, "data": data}
+
+
+@app.get(
+    "/api/stream/streamid-list",
+    summary="获取当前在线流ID列表（包括拉流和推流）",
+    tags=["流"],
+)
 async def get_streamid_list(
     vhost: str = Query("__defaultVhost__", description="筛选虚拟主机"),
     schema: str | None = Query(None, description="筛选协议，例如 rtsp或rtmp"),
@@ -349,7 +597,9 @@ async def get_streamid_list(
     return {"code": 0, "data": result}
 
 
-@app.delete("/api/stream/streamid", tags=["流"], summary="删除在线流ID")
+@app.delete(
+    "/api/stream/streamid", summary="删除在线流ID（包括拉流和推流）", tags=["流"]
+)
 async def delete_streamid(
     vhost: str = Query("__defaultVhost__", description="虚拟主机"),
     app: str = Query(..., description="应用名"),
@@ -368,7 +618,7 @@ async def delete_streamid(
 
 
 # =============================================================================
-@app.get("/api/playback/start-record", tags=["录制"], summary="开启录制")
+@app.get("/api/playback/start-record", summary="开启录制", tags=["录制"])
 async def get_start_record(
     vhost: str = Query("__defaultVhost__", description="虚拟主机"),
     app: str = Query(..., description="应用名"),
@@ -402,7 +652,7 @@ async def get_start_record(
     return response.json()
 
 
-@app.get("/api/playback/stop-record", tags=["录制"], summary="停止录制")
+@app.get("/api/playback/stop-record", summary="停止录制", tags=["录制"])
 async def get_stop_record(
     vhost: str = Query("__defaultVhost__", description="虚拟主机"),
     app: str = Query(..., description="应用名"),
@@ -420,7 +670,7 @@ async def get_stop_record(
     return response.json()
 
 
-@app.get("/api/playback/event-record", tags=["录制"], summary="开启事件视频录制")
+@app.get("/api/playback/event-record", summary="开启事件视频录制", tags=["录制"])
 async def get_event_record(
     vhost: str = Query("__defaultVhost__", description="虚拟主机"),
     app: str = Query(..., description="应用名"),
@@ -445,8 +695,8 @@ async def get_event_record(
 
 @app.get(
     "/api/playback/streamid-record-list",
-    tags=["录制"],
     summary="获取本地所有流ID的录制信息",
+    tags=["录制"],
 )
 async def get_streamid_record_list():
     result = []
@@ -539,7 +789,7 @@ async def get_streamid_record_list():
 
 
 @app.get(
-    "/api/playback/streamid-record", tags=["录制"], summary="获取指定流ID的全部录制信息"
+    "/api/playback/streamid-record", summary="获取指定流ID的全部录制信息", tags=["录制"]
 )
 async def get_streamid_record(
     app: str = Query(..., description="应用名"),
@@ -577,7 +827,7 @@ async def get_streamid_record(
 
 
 @app.delete(
-    "/api/playback/streamid-record", tags=["录制"], summary="删除指定流ID的全部录制文件"
+    "/api/playback/streamid-record", summary="删除指定流ID的全部录制文件", tags=["录制"]
 )
 async def delete_streamid_record(
     app: str = Query(..., description="应用名"),
@@ -607,7 +857,7 @@ async def delete_streamid_record(
 # =============================================================================
 
 
-@app.get("/api/server/config", tags=["配置"], summary="获取服务器配置")
+@app.get("/api/server/config", summary="获取服务器配置", tags=["配置"])
 async def get_server_config():
     query_params = {"secret": ZLM_SECRET}
     response = await client.get(
@@ -616,7 +866,7 @@ async def get_server_config():
     return response.json()
 
 
-@app.put("/api/server/config", tags=["配置"], summary="修改服务器配置")
+@app.put("/api/server/config", summary="修改服务器配置", tags=["配置"])
 async def put_server_config(request: Request):
     query_params = dict(request.query_params)
     query_params["secret"] = ZLM_SECRET
@@ -626,8 +876,6 @@ async def put_server_config(request: Request):
     )
     return response.json()
 
-
-app.include_router(onvif_router)
 
 if __name__ == "__main__":
     import uvicorn
