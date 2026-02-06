@@ -292,17 +292,17 @@ async def get_host_stats():
             "total": round(disk.total / (1024**3), 2),
         }
 
-    # 带宽使用率
-    net_io = psutil.net_io_counters()
+    net = psutil.net_io_counters()
     net_io = {
-        "sent": round(net_io.bytes_sent / (1024**2), 2),
-        "recv": round(net_io.bytes_recv / (1024**2), 2),
+        "sent": int(net.bytes_sent),
+        "recv": int(net.bytes_recv),
     }
 
     return {
         "code": 0,
         "data": {
             "time": timestamp,
+            "ts_ms": int(datetime.now().timestamp() * 1000),
             "cpu": round(cpu_percent, 2),
             "memory": memory_info,
             "disk": disk_info,

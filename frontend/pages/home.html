@@ -10,7 +10,7 @@
   <div style="padding: 16px 16px 0 16px">
     <div class="layui-card">
       <!-- <div class="layui-card-header">ZLM Perf</div> -->
-      <div class="layui-card-body" style="display: flex; overflow-x: auto">
+      <div class="layui-card-body" style="display: flex">
         <div id="ID_chart_statistic" style="flex: 1; height: 400px"></div>
         <div id="ID_chart_workthreadsload" style="flex: 1; height: 400px"></div>
         <div id="ID_chart_threadsload" style="flex: 1; height: 400px"></div>
@@ -80,7 +80,7 @@
                   left: "center",
                   textStyle: { fontSize: 14 },
                 },
-                tooltip: {},
+                tooltip: { confine: true },
                 xAxis: {
                   type: "category",
                   data: Object.keys(res.data),
@@ -129,6 +129,7 @@
                 },
                 tooltip: {
                   trigger: "axis",
+                  confine: true,
                 },
                 legend: {
                   data: ["延迟", "负载"],
@@ -198,7 +199,7 @@
                   left: "center",
                   textStyle: { fontSize: 14 },
                 },
-                tooltip: { trigger: "axis" },
+                tooltip: { trigger: "axis", confine: true },
                 legend: {
                   data: ["延迟", "负载"],
                   bottom: "5%",
@@ -275,6 +276,7 @@
                 },
                 tooltip: {
                   trigger: "axis",
+                  confine: true,
                   formatter: function (params) {
                     const p = Array.isArray(params) ? params[0] : params;
                     const time =
@@ -342,6 +344,7 @@
                 },
                 tooltip: {
                   trigger: "axis",
+                  confine: true,
                   formatter: function (params) {
                     const p = Array.isArray(params) ? params[0] : params;
                     const idx = p && p.dataIndex != null ? p.dataIndex : 0;
@@ -518,6 +521,7 @@
                   },
                 ],
                 tooltip: {
+                  confine: true,
                   formatter: function (params) {
                     if (!Array.isArray(params)) {
                       params = [params];
@@ -603,6 +607,7 @@
                 },
                 tooltip: {
                   trigger: "axis",
+                  confine: true,
                   formatter: (params) => {
                     return (
                       params[0]?.name +
