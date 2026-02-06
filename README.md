@@ -3,26 +3,23 @@
   <h1>StreamUI</h1>
 </div>
 
-### Overview
-
-一个极简轻量的视频流媒体管理平台
+一个极简轻量的视频流媒体管理平台，开箱即用，易于扩展
 
 > StreamUI 中 Stream 取自 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit) 流概念，UI 取自 [Layui](https://github.com/layui/layui)。整体设计以蓝绿色（`#16baaa`）为主色调，秉持 “简洁、易用、可扩展” 的理念，在代码复杂度与功能实现之间不断权衡取舍，执着追求极简之美
 
-
 ### Features
 
-- ✅ 支持 RTSP/RTMP/HLS/WebRTC/RTP/GB28181 等主流协议的拉流接入、拉流保存
+✅ 支持 RTSP/RTMP/HLS/WebRTC/RTP/GB28181 等主流协议的拉流接入、拉流保存
 
-- ✅ 支持 RTSP/RTMP/RTP 等协议的推流接入
+✅ 支持 RTSP/RTMP/RTP 等协议的推流接入
 
-- ✅ 支持接入流分发 RTSP/WebRTC/RTMP/FLV/HLS/HLS-fMP4/HTTP-TS/HTTP-fMP4 等协议
+✅ 支持接入流分发 RTSP/WebRTC/RTMP/FLV/HLS/HLS-fMP4/HTTP-TS/HTTP-fMP4 等协议
 
-- ✅ 支持接入流 1x1、2x2、3x3 多屏播放
+✅ 支持接入流 1x1、2x2、3x3 多屏播放
 
-- ✅ 支持接入流本地录制、回放、下载、自动清理等功能
+✅ 支持接入流本地录制、回放、下载、自动清理等功能
 
-- StreamUI 重在流管理，暂不支持 ONVIF、GB28181 设备的识别、流接入、云台控制
+StreamUI 重在流管理，暂不支持 ONVIF、GB28181 设备的识别、流接入、云台控制
 
 ### Quick Start
 
@@ -39,7 +36,7 @@ docker compose up -d
 
 ### Tips
 
-首次启动后，建议根据业务需要修改配置
+首次启动后，建议先进入 [基础配置] 页面，根据业务需要修改配置
 
 - 考虑开启按需转发，优点是节省带宽，缺点是第一个观众观看时，需要等待转发流启动
 
@@ -49,7 +46,7 @@ docker compose up -d
 
 - 考虑增大 GOP 缓存，优点是播放平滑，录制事件视频回溯时间变长，缺点是增大内存占用
 
-更多选项深入研究请参考 ZLMediaKit 的 [配置说明](https://github.com/ZLMediaKit/ZLMediaKit/tree/master/conf)
+更多选项深入研究请参考 ZLMediaKit 的 [配置](https://github.com/ZLMediaKit/ZLMediaKit/tree/master/conf)
 
 ### Snapshots
 
@@ -65,7 +62,8 @@ StreamUI 追求极简实现，前端未采用 Vue、React 等重量级框架，�
 
 ```bash
 ├── backend
-│   ├── main.py  # 后台接口
+│   ├── db  # 数据库目录
+│   ├── main.py  # 接口
 │   ├── scheduler.py  # 定时任务
 │   └── utils.py  # 工具函数 
 │
@@ -78,11 +76,11 @@ StreamUI 追求极简实现，前端未采用 Vue、React 等重量级框架，�
 │       ├── playback.html  # 录像回放
 │       ├── pull-stream.html  # 拉流接入
 │       ├── settings.html  # 基础配置
-│       ├── stream-push.html  # 推流接入
+│       ├── push-stream.html  # 推流接入
 │       └── wall.html  # 分屏展示
 ```
 
-实现框架图如下所示
+整体框架图如下所示
 
 <img src="https://github.com/user-attachments/assets/ff25b267-f18b-4f3d-b2f5-07b4706aefd8" alt="framework" style="zoom:50%;" />
 

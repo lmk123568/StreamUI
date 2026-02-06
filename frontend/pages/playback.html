@@ -151,12 +151,21 @@
               </select>
             </div>
           </div>
+          <div class="layui-inline">
+            <button
+              type="button"
+              class="layui-btn"
+              id="ID_download_segment"
+            >
+              下载当前片段
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- 视频播放器 -->
       <div
-        style="margin: 0 30px 0 30px; display: flex;justify-content: center;"
+        style="margin: 0 30px 0 30px; display: flex; justify-content: center; align-items: center;"
       >
         <video id="ID_player" controls autoplay></video>
       </div>
@@ -209,6 +218,7 @@
         const labelsContainer = document.getElementById("labels");
         const playhead = document.getElementById("playhead");
         const currentTimeEl = document.getElementById("currentTime");
+        const downloadBtn = document.getElementById("ID_download_segment");
 
         let recordings = [];
         let startTime = 0;
@@ -262,20 +272,29 @@
           }
         };
 
+        function getRecordingFromCurrentSrc() {
+          if (!videoPlayer || !videoPlayer.src || recordings.length === 0) {
+            return null;
+          }
+
+          let filename = null;
+          try {
+            const url = new URL(videoPlayer.src, window.location.href);
+            filename = url.pathname;
+          } catch (e) {
+            return null;
+          }
+
+          const rec = recordings.find((r) => r.filename === filename);
+          return rec || null;
+        }
+
         const onTimeUpdate = () => {
           if (isDragging) return;
           if (!videoPlayer || recordings.length === 0) return;
           if (!videoPlayer.src) return;
 
-          let filename = null;
-          try {
-            const url = new URL(videoPlayer.src);
-            filename = url.pathname;
-          } catch (e) {
-            return;
-          }
-
-          const rec = recordings.find((r) => r.filename === filename);
+          const rec = getRecordingFromCurrentSrc();
           if (!rec) return;
 
           const videoLocalTime = videoPlayer.currentTime * 1000;
@@ -283,6 +302,28 @@
           const absoluteTime = videoStartTime + videoLocalTime;
 
           updatePlayhead(absoluteTime);
+        };
+
+        const onDownloadClick = () => {
+          const rec = getRecordingFromCurrentSrc();
+          if (!rec) {
+            if (layer && typeof layer.msg === "function") {
+              layer.msg("⚠️ 当前没有可下载的片段", {
+                time: 1500,
+                offset: "t",
+                shift: 1,
+              });
+            }
+            return;
+          }
+
+          const link = document.createElement("a");
+          link.href = rec.filename;
+          const parts = rec.filename.split("/");
+          link.download = parts[parts.length - 1] || "record.mp4";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
         };
 
         function clearTimeline() {
@@ -401,6 +442,8 @@
           videoPlayer?.removeEventListener("ended", onEnded);
           videoPlayer?.removeEventListener("timeupdate", onTimeUpdate);
 
+          downloadBtn?.removeEventListener("click", onDownloadClick);
+
           if (videoPlayer) {
             videoPlayer.pause();
             videoPlayer.removeAttribute("src");
@@ -416,6 +459,10 @@
 
         videoPlayer?.addEventListener("ended", onEnded);
         videoPlayer?.addEventListener("timeupdate", onTimeUpdate);
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener("click", onDownloadClick);
+        }
 
         clearTimeline();
 
