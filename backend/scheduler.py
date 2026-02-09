@@ -1,7 +1,8 @@
-import os
 import re
 from datetime import datetime
 from pathlib import Path
+
+from db import list_record_policies
 
 
 def parse_filename_time(filename: str) -> datetime:
@@ -21,9 +22,9 @@ def parse_filename_time(filename: str) -> datetime:
     return datetime.min
 
 
-def cleanup_old_videos(path: Path, keep_videos: int):
+def cleanup_old_videos(path: Path):
     """
-    扫描 path 下所有 app/stream，保留最新的 keep_videos 个 .mp4 文件，删除旧的
+    扫描 path 下所有 app/stream，按数据库中配置的保留天数删除旧的 .mp4 片段
     """
     print(
         f"[Scheduler {datetime.now()}] 开始扫描 {path} 下所有 app/stream 的视频片段..."
@@ -37,59 +38,64 @@ def cleanup_old_videos(path: Path, keep_videos: int):
         print(f"[Scheduler Error] ❌ 路径不是目录: {path}")
         return
 
-    total_deleted = 0  # 统计总共删除的文件数
+    try:
+        rows = list_record_policies(enabled_only=True)
+    except Exception:
+        rows = []
+    if not rows:
+        print(f"[Scheduler {datetime.now()}] 未发现启用的录像保留策略，跳过清理。")
+        return
+
+    total_deleted = 0
 
     date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")  # 正则匹配
 
-    for app_name in os.listdir(path):
-        app_path = path / app_name
-        if not app_path.is_dir():
+    for row in rows:
+        app_name = str(row.get("app", "")).strip()
+        stream_name = str(row.get("stream", "")).strip()
+        if not (app_name and stream_name):
             continue
 
-        for stream_name in os.listdir(app_path):
-            stream_path = app_path / stream_name
-            if not stream_path.is_dir():
+        try:
+            retention_days = int(row.get("retention_days", 0) or 0)
+        except Exception:
+            retention_days = 0
+        if retention_days <= 0:
+            continue
+
+        keep_videos = retention_days * 24 * 12
+        stream_path = path / app_name / stream_name
+        if not stream_path.exists() or not stream_path.is_dir():
+            continue
+
+        video_files = list(stream_path.rglob("*.mp4"))
+        if len(video_files) <= keep_videos:
+            continue
+
+        sorted_files = sorted(
+            video_files,
+            key=lambda f: parse_filename_time(f.name),
+            reverse=True,
+        )
+        for file_path in sorted_files[keep_videos:]:
+            try:
+                file_path.unlink()
+                relative_path = file_path.relative_to(path)
+                print(f"[Scheduler {datetime.now()}] 🗑️ 删除旧片段: {relative_path}")
+                total_deleted += 1
+            except Exception as e:
+                print(f"[Scheduler Error] ❌ 删除失败 {file_path}: {e}")
+
+        for item in stream_path.iterdir():
+            if not item.is_dir():
                 continue
-
-            for item in os.listdir(stream_path):
-                item_path = stream_path / item
-
-                if not item_path.is_dir():
-                    continue
-
-                # 使用正则匹配 YYYY-MM-DD
-                match = date_pattern.match(item)
-                if not match:
-                    continue
-
-                video_files = []
-                for file_path in stream_path.rglob("*.mp4"):
-                    video_files.append(file_path)
-
-                if len(video_files) <= keep_videos:
-                    continue
-
-                # 按文件名中的时间排序（新 → 旧）
-                sorted_files = sorted(
-                    video_files,
-                    key=lambda f: parse_filename_time(f.name),
-                    reverse=True,
-                )
-
-                # 要删除的是：从第 keep_videos 个开始的所有文件
-                files_to_delete = sorted_files[keep_videos:]
-
-                for file_path in files_to_delete:
-                    try:
-                        file_path.unlink()
-                        relative_path = file_path.relative_to(path)
-                        print(
-                            f"[Scheduler {datetime.now()}] 🗑️ 删除旧片段: {relative_path}"
-                        )
-                        total_deleted += 1
-
-                    except Exception as e:
-                        print(f"[Scheduler Error] ❌ 删除失败 {file_path}: {e}")
+            if not date_pattern.match(item.name):
+                continue
+            try:
+                if not any(item.glob("*.mp4")):
+                    item.rmdir()
+            except Exception:
+                continue
 
     print(
         f"[Scheduler {datetime.now()}] ✅ 扫描与清理完成，共删除 {total_deleted} 个旧视频片段。"

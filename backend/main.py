@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import asyncio
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -11,14 +12,24 @@ import docker
 import psutil
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from db import delete_pull_proxy as db_delete_pull_proxy
+from db import delete_record_policy as db_delete_record_policy
+from db import get_record_policy as db_get_record_policy
 from db import init_db as db_init
 from db import list_pull_proxies as db_list_pull_proxies
+from db import list_record_policies as db_list_record_policies
+from db import upsert_record_policy as db_upsert_record_policy
 from db import upsert_pull_proxy as db_upsert_pull_proxy
 from scheduler import cleanup_old_videos
-from utils import get_video_shanghai_time, get_zlm_secret
+from utils import (
+    get_video_shanghai_time,
+    get_video_shanghai_time_from_filename,
+    get_zlm_secret,
+    summarize_existing_recordings,
+)
 
 # =========================================================
 # zlmediakit 地址
@@ -27,11 +38,80 @@ ZLM_SERVER = "http://127.0.0.1:8080"
 ZLM_SECRET = get_zlm_secret("/opt/media/conf/config.ini")
 # zlmediakit 录像
 RECORD_ROOT = Path("/opt/media/bin/www/record")
-# 录像最大切片数
-KEEP_VIDEOS = 72
+# 容器
 ZLM_CONTAINER_NAME = os.getenv("ZLM_CONTAINER_NAME", "zlm-server")
 STREAMUI_CONTAINER_NAME = os.getenv("STREAMUI_CONTAINER_NAME", "streamui-web-server")
 # =========================================================
+
+_last_record_start_attempt: dict[tuple[str, str, str], float] = {}
+
+
+async def ensure_recording_from_policies() -> None:
+    try:
+        policies = db_list_record_policies(enabled_only=True) or []
+    except Exception:
+        return
+    if not policies:
+        return
+
+    try:
+        response = await client.get(
+            f"{ZLM_SERVER}/index/api/getMediaList", params={"secret": ZLM_SECRET}
+        )
+        raw = response.json()
+        if raw.get("code") != 0:
+            return
+    except Exception:
+        return
+
+    media_map: dict[tuple[str, str, str], dict] = {}
+    for media in raw.get("data", []) or []:
+        if not isinstance(media, dict):
+            continue
+        vhost = str(media.get("vhost") or "__defaultVhost__")
+        app = str(media.get("app") or "")
+        stream = str(media.get("stream") or "")
+        if not (app and stream):
+            continue
+        key = (vhost, app, stream)
+        agg = media_map.get(key) or {"isRecordingMP4": False}
+        if media.get("isRecordingMP4"):
+            agg["isRecordingMP4"] = True
+        media_map[key] = agg
+
+    now = time.time()
+    for policy in policies:
+        vhost = str(policy.get("vhost") or "__defaultVhost__")
+        app = str(policy.get("app") or "")
+        stream = str(policy.get("stream") or "")
+        if not (app and stream):
+            continue
+        key = (vhost, app, stream)
+        state = media_map.get(key)
+        if not state:
+            continue
+        if state.get("isRecordingMP4"):
+            continue
+
+        last = _last_record_start_attempt.get(key, 0.0)
+        if now - last < 60:
+            continue
+        _last_record_start_attempt[key] = now
+
+        try:
+            await client.get(
+                f"{ZLM_SERVER}/index/api/startRecord",
+                params={
+                    "secret": ZLM_SECRET,
+                    "vhost": vhost,
+                    "app": app,
+                    "stream": stream,
+                    "type": "1",
+                    "max_second": "300",
+                },
+            )
+        except Exception:
+            continue
 
 
 @asynccontextmanager
@@ -44,11 +124,20 @@ async def lifespan(app: FastAPI):
     # 添加任务：每小时整点执行
     scheduler.add_job(
         cleanup_old_videos,
-        kwargs={"path": RECORD_ROOT, "keep_videos": KEEP_VIDEOS},
-        trigger=CronTrigger(hour=0, minute=0),  # 每小时整点
+        kwargs={"path": RECORD_ROOT},
+        trigger=CronTrigger(minute=0),
         id="cleanup_videos",
-        name="每小时清理旧视频片段",
+        name="清理旧视频片段",
         replace_existing=True,
+    )
+    scheduler.add_job(
+        ensure_recording_from_policies,
+        trigger=IntervalTrigger(seconds=30),
+        id="ensure_recording",
+        name="保障录像自动续录",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
 
     # 只有在这里，事件循环已经启动，可以安全 start
@@ -360,7 +449,10 @@ async def post_pull_proxy(
         )
     )
 
-    return {"code": 0, "msg": "已保存，后台连接中", "db": db_row}
+    warning = summarize_existing_recordings(
+        record_root=RECORD_ROOT, app=app, stream=stream
+    )
+    return {"code": 0, "msg": "已保存，后台连接中", "db": db_row, "warning": warning}
 
 
 @app.delete("/api/stream/pull-proxy", summary="删除拉流代理", tags=["流"])
@@ -370,6 +462,7 @@ async def delete_pull_proxy(
     stream: str = Query(..., description="流id"),
 ):
     deleted = db_delete_pull_proxy(vhost=vhost, app=app, stream=stream)
+    db_delete_record_policy(vhost=vhost, app=app, stream=stream)
     asyncio.create_task(_del_stream_proxy_from_zlm(vhost=vhost, app=app, stream=stream))
     return {"code": 0, "msg": "已删除，后台同步中", "db_deleted": deleted}
 
@@ -635,12 +728,26 @@ async def get_start_record(
     query["app"] = str(app)
     query["stream"] = str(stream)
     query["type"] = "1"
+    try:
+        retention_days = int(record_days)
+    except Exception:
+        return {"code": -1, "msg": "record_days 必须是整数"}
+    if retention_days <= 0 or retention_days > 30:
+        return {"code": -1, "msg": "录像天数范围建议 1-30 天"}
 
-    max_second = (int(record_days) * 24 * 60 * 60) / KEEP_VIDEOS
-    query["max_second"] = str(max_second)
+    db_row = db_upsert_record_policy(
+        vhost=str(vhost),
+        app=str(app),
+        stream=str(stream),
+        retention_days=retention_days,
+        enabled=True,
+    )
+    query["max_second"] = "300"
 
     response = await client.get(url, params=query)
-    return response.json()
+    raw = response.json()
+    raw["record_policy"] = db_row
+    return raw
 
 
 @app.get("/api/playback/stop-record", summary="停止录制", tags=["录制"])
@@ -658,7 +765,21 @@ async def get_stop_record(
     query["type"] = "1"
 
     response = await client.get(url, params=query)
-    return response.json()
+    raw = response.json()
+    existing = db_get_record_policy(vhost=str(vhost), app=str(app), stream=str(stream))
+    if existing:
+        try:
+            retention_days = int(existing.get("retention_days", 0) or 0)
+        except Exception:
+            retention_days = 0
+        db_upsert_record_policy(
+            vhost=str(vhost),
+            app=str(app),
+            stream=str(stream),
+            retention_days=retention_days,
+            enabled=False,
+        )
+    return raw
 
 
 @app.get("/api/playback/event-record", summary="开启事件视频录制", tags=["录制"])
@@ -697,6 +818,49 @@ async def get_streamid_record_list():
 
     # 正则匹配 YYYY-MM-DD 格式
     date_pattern = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+
+    policy_map: dict[tuple[str, str, str], dict] = {}
+    try:
+        for row in db_list_record_policies(enabled_only=False) or []:
+            vhost = str(row.get("vhost") or "__defaultVhost__")
+            app_name = str(row.get("app") or "")
+            stream_name = str(row.get("stream") or "")
+            if not (app_name and stream_name):
+                continue
+            policy_map[(vhost, app_name, stream_name)] = dict(row)
+    except Exception:
+        policy_map = {}
+
+    active_keys: set[tuple[str, str, str]] = set()
+    recording_map: dict[tuple[str, str, str], bool] = {}
+    try:
+        query_params = {"secret": ZLM_SECRET, "vhost": "__defaultVhost__"}
+        response = await client.get(
+            f"{ZLM_SERVER}/index/api/getMediaList", params=query_params
+        )
+        raw = response.json()
+        if raw.get("code") == 0:
+            for media in raw.get("data", []) or []:
+                if not isinstance(media, dict):
+                    continue
+                vhost = str(media.get("vhost") or "__defaultVhost__")
+                app_name = str(media.get("app") or "")
+                stream_name = str(media.get("stream") or "")
+                if not (app_name and stream_name):
+                    continue
+                key = (vhost, app_name, stream_name)
+                active_keys.add(key)
+                try:
+                    is_recording = bool(media.get("isRecordingMP4"))
+                except Exception:
+                    is_recording = False
+                if is_recording:
+                    recording_map[key] = True
+                else:
+                    recording_map.setdefault(key, False)
+    except Exception:
+        active_keys = set()
+        recording_map = {}
 
     try:
         for app_name in os.listdir(RECORD_ROOT):
@@ -763,6 +927,15 @@ async def get_streamid_record_list():
                 if total_slices == 0:
                     continue
 
+                policy = (
+                    policy_map.get(("__defaultVhost__", app_name, stream_name)) or {}
+                )
+                try:
+                    enabled = int(policy.get("enabled", 0) or 0)
+                except Exception:
+                    enabled = 0
+                record_days = policy.get("retention_days", "-") if enabled == 1 else "-"
+
                 result.append(
                     {
                         "app": app_name,
@@ -770,6 +943,12 @@ async def get_streamid_record_list():
                         "slice_num": total_slices,
                         "total_storage_gb": round(total_size_bytes / (1024**3), 2),
                         "dates": sorted(dates),
+                        "record_days": record_days,
+                        "isOnline": ("__defaultVhost__", app_name, stream_name)
+                        in active_keys,
+                        "isRecordingMP4": recording_map.get(
+                            ("__defaultVhost__", app_name, stream_name), False
+                        ),
                     }
                 )
 
@@ -799,7 +978,9 @@ async def get_streamid_record(
 
     for file_path in target_dir.iterdir():
         if file_path.suffix.lower() == ".mp4":
-            data = get_video_shanghai_time(file_path)
+            data = get_video_shanghai_time_from_filename(file_path)
+            if not data:
+                data = get_video_shanghai_time(file_path)
             if data:
                 try:
                     # 计算相对路径：app/stream/date/filename.mp4

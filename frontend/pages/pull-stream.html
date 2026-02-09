@@ -580,7 +580,7 @@
                     playerElement.load();
                     const p = playerElement.play();
                     if (p && typeof p.catch === "function") {
-                      p.catch(() => {});
+                      p.catch(() => { });
                     }
                     retryCount += 1;
                   }, delay);
@@ -618,7 +618,7 @@
                 showStatus("连接中...");
                 const p = playerElement.play();
                 if (p && typeof p.catch === "function") {
-                  p.catch(() => {});
+                  p.catch(() => { });
                 }
 
                 playerElement.__streamui_cleanup__ = () => {
@@ -907,7 +907,7 @@
 
                   if (
                     !/^\d+$/.test(formData["record_days"]) ||
-                    parseInt(formData["record_days"], 10) < 0 ||
+                    parseInt(formData["record_days"], 10) < 1 ||
                     parseInt(formData["record_days"], 10) > 30
                   ) {
                     layer.msg("⚠️ 录像天数建议不要超过30天", {
@@ -1036,6 +1036,15 @@
                       offset: "t",
                       shift: 1,
                     });
+                    if (res.warning && res.warning.has_old_recordings) {
+                      const w = res.warning;
+                      const tip = `⚠️ 本地已存在同名 [应用名/流ID] 旧录像 ${w.app}/${w.stream}`;
+                      layer.msg(tip, {
+                        time: 4000,
+                        offset: "t",
+                        shift: 1,
+                      });
+                    }
                     renderTable();
                     setTimeout(() => {
                       renderTable();
@@ -1226,6 +1235,15 @@
                       offset: "t",
                       shift: 1,
                     });
+                    if (res.warning && res.warning.has_old_recordings) {
+                      const w = res.warning;
+                      const tip = `⚠️ 本地已存在同名旧录像：${w.app}/${w.stream}（${w.date_from} ~ ${w.date_to}，${w.slice_num} 段）`;
+                      layer.msg(tip, {
+                        time: 5000,
+                        offset: "t",
+                        shift: 6,
+                      });
+                    }
                     renderTable();
                     setTimeout(() => {
                       renderTable();

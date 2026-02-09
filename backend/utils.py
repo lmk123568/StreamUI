@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -80,6 +81,31 @@ def get_video_shanghai_time(video_path: Path) -> dict | None:
         return None
 
 
+def get_video_shanghai_time_from_filename(
+    video_path: Path, *, default_duration_seconds: float = 300.0
+) -> dict | None:
+    filename = video_path.name
+    match = re.match(
+        r"(\d{4})-(\d{1,2})-(\d{1,2})-(\d{1,2})-(\d{1,2})-(\d{1,2})",
+        filename,
+    )
+    if not match:
+        return None
+    year, month, day, hour, minute, second = map(int, match.groups())
+    try:
+        start_sh = datetime(year, month, day, hour, minute, second, tzinfo=TZ_SHANGHAI)
+    except ValueError:
+        return None
+    duration = float(default_duration_seconds)
+    end_sh = start_sh + timedelta(seconds=duration)
+    return {
+        "filename": video_path,
+        "duration": round(duration, 3),
+        "start": start_sh.isoformat(),
+        "end": end_sh.isoformat(),
+    }
+
+
 def get_zlm_secret(file_path: str) -> str:
     """从配置文件中获取 zlm 的 secret"""
 
@@ -106,3 +132,62 @@ def get_zlm_secret(file_path: str) -> str:
 
     # 如果没找到 secret
     raise ValueError(f"在配置文件中未找到 'secret' 配置项: {file_path}")
+
+
+def summarize_existing_recordings(
+    *,
+    record_root: Path,
+    app: str,
+    stream: str,
+) -> dict | None:
+    base_dir = record_root / app / stream
+    if not base_dir.exists() or not base_dir.is_dir():
+        return None
+
+    date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+    dates: list[str] = []
+    slice_num = 0
+    total_size_bytes = 0
+
+    try:
+        for item in base_dir.iterdir():
+            if not item.is_dir():
+                continue
+            if not date_pattern.match(item.name):
+                continue
+            try:
+                mp4_files = [
+                    p
+                    for p in item.iterdir()
+                    if p.is_file() and p.suffix.lower() == ".mp4"
+                ]
+            except Exception:
+                continue
+            if not mp4_files:
+                continue
+            dates.append(item.name)
+            slice_num += len(mp4_files)
+            for p in mp4_files:
+                try:
+                    total_size_bytes += p.stat().st_size
+                except Exception:
+                    continue
+    except Exception:
+        return None
+
+    if slice_num <= 0 or not dates:
+        return None
+
+    dates.sort()
+    date_from = dates[0]
+    date_to = dates[-1]
+    return {
+        "has_old_recordings": True,
+        "app": app,
+        "stream": stream,
+        "slice_num": slice_num,
+        "total_storage_gb": round(total_size_bytes / (1024**3), 2),
+        "date_from": date_from,
+        "date_to": date_to,
+        "date_count": len(dates),
+    }

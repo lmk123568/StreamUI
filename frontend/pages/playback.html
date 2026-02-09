@@ -583,9 +583,53 @@
                       align: "center",
                       width: 200,
                     },
+                    // {
+                    //   field: "isOnline",
+                    //   title: "源流接入",
+                    //   align: "center",
+                    //   width: 120,
+                    //   templet: function (d) {
+                    //     if (d.isOnline) {
+                    //       return `<span style="color:#16baaa;font-weight:600;">已接入</span>`;
+                    //     }
+                    //     return `<span style="color:#999;">已离线</span>`;
+                    //   },
+                    // },
+                    {
+                      field: "isRecordingMP4",
+                      title: "正在录像",
+                      align: "center",
+                      width: 120,
+                      templet: function (d) {
+                        if (d.isRecordingMP4) {
+                          return `<span style="color:#16baaa;font-weight:600;">是</span>`;
+                        }
+                        const hasPolicy =
+                          d.record_days !== undefined &&
+                          d.record_days !== null &&
+                          String(d.record_days).trim() !== "-" &&
+                          String(d.record_days).trim() !== "";
+                        if (hasPolicy && !d.isOnline) {
+                          return `<span style="color:#ffb800;font-weight:600;">是（掉线）</span>`;
+                        }
+                        return `<span style="color:#999;">否</span>`;
+                      },
+                    },
+                    {
+                      field: "record_days",
+                      title: "保留(天)",
+                      align: "center",
+                      width: 120,
+                      templet: function (d) {
+                        if (d.record_days === undefined || d.record_days === null) {
+                          return `<div>-</div>`;
+                        }
+                        return `<div>${d.record_days}</div>`;
+                      },
+                    },
                     {
                       field: "slice_num",
-                      title: "切片数",
+                      title: "视频片段数",
                       align: "center",
                       width: 150,
                     },
@@ -598,15 +642,7 @@
                         return `<div>${d.total_storage_gb} GB</div>`;
                       },
                     },
-                    // {
-                    //   field: "record_days",
-                    //   title: "录像保留(天)",
-                    //   align: "center",
-                    //   width: 150,
-                    //   templet: function (d) {
-                    //     return `<div>${d.record_days}</div>`;
-                    //   },
-                    // },
+
                     {
                       field: "operate",
                       title: "操作",

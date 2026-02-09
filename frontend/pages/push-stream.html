@@ -682,7 +682,7 @@
 
                   if (
                     !/^\d+$/.test(formData["record_days"]) ||
-                    parseInt(formData["record_days"], 10) < 0 ||
+                    parseInt(formData["record_days"], 10) < 1 ||
                     parseInt(formData["record_days"], 10) > 30
                   ) {
                     layer.msg("⚠️ 录像天数建议不要超过30天", {
