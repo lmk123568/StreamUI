@@ -399,15 +399,25 @@
             const ts = pendingSeekTs;
             pendingSeekTs = null;
 
-            updatePlayhead(ts);
-
-            const rec = recordings.find(
-              (r) => ts >= parseTime(r.start) && ts <= parseTime(r.end)
+            let rec = recordings.find(
+              (r) => ts >= parseTime(r.start) && ts < parseTime(r.end)
             );
-            if (!rec) return;
+            let targetTs = ts;
+            if (!rec) {
+              const nextRec = recordings.find((r) => parseTime(r.start) > ts);
+              if (nextRec) {
+                rec = nextRec;
+                targetTs = parseTime(rec.start) + 1000;
+              } else {
+                rec = recordings[recordings.length - 1];
+                targetTs = Math.max(parseTime(rec.start), parseTime(rec.end) - 1000);
+              }
+            }
+
+            updatePlayhead(targetTs);
 
             const videoStart = parseTime(rec.start);
-            const seekTimeInVideo = Math.max(0, (ts - videoStart) / 1000);
+            const seekTimeInVideo = Math.max(0, (targetTs - videoStart) / 1000);
 
             const currentSrc = videoPlayer.src || "";
             const isSameFile = currentSrc.endsWith(rec.filename);

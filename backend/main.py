@@ -4,8 +4,9 @@ import shutil
 import asyncio
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx
 import docker
@@ -24,12 +25,7 @@ from db import list_record_policies as db_list_record_policies
 from db import upsert_record_policy as db_upsert_record_policy
 from db import upsert_pull_proxy as db_upsert_pull_proxy
 from scheduler import cleanup_old_videos
-from utils import (
-    get_video_shanghai_time,
-    get_video_shanghai_time_from_filename,
-    get_zlm_secret,
-    summarize_existing_recordings,
-)
+from utils import get_video_shanghai_time, get_zlm_secret, summarize_existing_recordings
 
 # =========================================================
 # zlmediakit 地址
@@ -974,25 +970,73 @@ async def get_streamid_record(
     if not target_dir.is_dir():
         return {"code": 1, "msg": f"路径不是目录: {target_dir}"}
 
-    results = []
+    tz_shanghai = ZoneInfo("Asia/Shanghai")
+    parsed: list[tuple[Path, datetime]] = []
+    fallback_files: list[Path] = []
 
     for file_path in target_dir.iterdir():
-        if file_path.suffix.lower() == ".mp4":
-            data = get_video_shanghai_time_from_filename(file_path)
-            if not data:
-                data = get_video_shanghai_time(file_path)
-            if data:
-                try:
-                    # 计算相对路径：app/stream/date/filename.mp4
-                    rel_path = file_path.relative_to(RECORD_ROOT)
-                    data["filename"] = str(rel_path)
-                except ValueError:
-                    print(f"⚠️ 文件不在 RECORD_ROOT 下，跳过: {file_path}")
-                    continue
+        if not file_path.is_file():
+            continue
+        if file_path.suffix.lower() != ".mp4":
+            continue
+        if file_path.name.startswith("."):
+            continue
 
-                results.append(data)
+        m = re.match(
+            r"(\d{4})-(\d{1,2})-(\d{1,2})-(\d{1,2})-(\d{1,2})-(\d{1,2})",
+            file_path.name,
+        )
+        if not m:
+            fallback_files.append(file_path)
+            continue
+        year, month, day, hour, minute, second = map(int, m.groups())
+        try:
+            start_dt = datetime(
+                year, month, day, hour, minute, second, tzinfo=tz_shanghai
+            )
+        except ValueError:
+            fallback_files.append(file_path)
+            continue
+        parsed.append((file_path, start_dt))
 
-    # 按开始时间排序
+    parsed.sort(key=lambda x: x[1])
+
+    results: list[dict] = []
+    default_duration = 300.0
+    for i, (file_path, start_dt) in enumerate(parsed):
+        duration = default_duration
+        if i + 1 < len(parsed):
+            next_start = parsed[i + 1][1]
+            delta = (next_start - start_dt).total_seconds()
+            if 1 <= delta <= 600:
+                duration = float(delta)
+        end_dt = start_dt + timedelta(seconds=duration)
+
+        try:
+            rel_path = file_path.relative_to(RECORD_ROOT)
+        except ValueError:
+            continue
+
+        results.append(
+            {
+                "filename": str(rel_path),
+                "duration": round(duration, 3),
+                "start": start_dt.isoformat(),
+                "end": end_dt.isoformat(),
+            }
+        )
+
+    for file_path in fallback_files:
+        data = get_video_shanghai_time(file_path)
+        if not data:
+            continue
+        try:
+            rel_path = file_path.relative_to(RECORD_ROOT)
+            data["filename"] = str(rel_path)
+        except ValueError:
+            continue
+        results.append(data)
+
     results.sort(key=lambda x: x["start"])
 
     return {"code": 0, "data": results}

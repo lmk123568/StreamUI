@@ -49,6 +49,7 @@ def cleanup_old_videos(path: Path):
     total_deleted = 0
 
     date_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")  # 正则匹配
+    safe_seconds = 15 * 60
 
     for row in rows:
         app_name = str(row.get("app", "")).strip()
@@ -68,7 +69,21 @@ def cleanup_old_videos(path: Path):
         if not stream_path.exists() or not stream_path.is_dir():
             continue
 
-        video_files = list(stream_path.rglob("*.mp4"))
+        video_files: list[Path] = []
+        now_ts = datetime.now().timestamp()
+        for p in stream_path.rglob("*.mp4"):
+            if not p.is_file():
+                continue
+            if p.name.startswith("."):
+                continue
+            try:
+                if now_ts - p.stat().st_mtime < safe_seconds:
+                    continue
+            except Exception:
+                continue
+            if parse_filename_time(p.name) == datetime.min:
+                continue
+            video_files.append(p)
         if len(video_files) <= keep_videos:
             continue
 
@@ -92,7 +107,10 @@ def cleanup_old_videos(path: Path):
             if not date_pattern.match(item.name):
                 continue
             try:
-                if not any(item.glob("*.mp4")):
+                has_mp4 = any(
+                    p.is_file() and p.suffix.lower() == ".mp4" for p in item.iterdir()
+                )
+                if not has_mp4:
                     item.rmdir()
             except Exception:
                 continue
