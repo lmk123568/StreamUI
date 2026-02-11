@@ -52,12 +52,12 @@ docker compose up -d
 
 <table>
     <tr>
-        <td ><center><img src="snapshots/login.png" >登录页面</center></td>
-        <td ><center><img src="snapshots/home.png" >首页</center></td>
+        <td ><center><img src="assets/login.png" >登录页面</center></td>
+        <td ><center><img src="assets/home.png" >首页</center></td>
     </tr>
     <tr>
-        <td ><center><img src="snapshots/pull-stream.png" >拉流接入</center></td>
-        <td ><center><img src="snapshots/video-wall.png" >分屏播放</center></td>
+        <td ><center><img src="assets/pull-stream.png" >拉流接入</center></td>
+        <td ><center><img src="assets/video-wall.png" >分屏播放</center></td>
     </tr>
 </table>
 
