@@ -50,9 +50,16 @@ docker compose up -d
 
 ### Snapshots
 
-<img src="./snapshots/login.png" alt="wall" style="zoom:33%;" />
-
-<img src="./snapshots/home.png" alt="home" style="zoom: 33%;" />
+<table>
+    <tr>
+        <td ><center><img src="snapshots/login.png" >登录页面</center></td>
+        <td ><center><img src="snapshots/home.png" >首页</center></td>
+    </tr>
+    <tr>
+        <td ><center><img src="snapshots/pull-stream.png" >拉流接入</center></td>
+        <td ><center><img src="snapshots/video-wall.png" >分屏播放</center></td>
+    </tr>
+</table>
 
 ### Architecture
 
