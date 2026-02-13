@@ -1,3 +1,5 @@
+⚙️ 中文 | [English](./README_en.md)
+
 <div align="center">
   <img src="./frontend/assets/logo.svg" width="56px"/>
   <h1>StreamUI</h1>
