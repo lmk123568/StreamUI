@@ -114,6 +114,15 @@
             </button>
           </div>
           <div>
+            <button type="button" class="layui-btn layui-btn-primary" id="ID_pull_btnTemplate">
+              模板下载
+            </button>
+            <button type="button" class="layui-btn layui-btn-primary" id="ID_pull_btnExport">
+              导出
+            </button>
+            <button type="button" class="layui-btn layui-btn-normal" id="ID_pull_btnImport">
+              批量导入
+            </button>
             <button type="button" class="layui-btn" style="background-color: #16baaa" id="ID_pull_url_btn">
               <i class="layui-icon layui-icon-addition"></i> 添加
             </button>
@@ -281,6 +290,29 @@
       </form>
     </script>
 
+  <script id="ID_tpl_import_pull_proxy" type="text/html">
+      <div style="padding: 16px 20px 12px;">
+        <div class="layui-form">
+          <div class="layui-form-item" style="margin: 0 0 12px 0;">
+            <label class="layui-form-label" style="width: 110px;">导入模式</label>
+            <div class="layui-input-block" style="margin-left: 130px;">
+              <input type="radio" name="import_mode" value="overwrite" title="覆盖同名" checked>
+              <input type="radio" name="import_mode" value="skip" title="跳过同名">
+            </div>
+          </div>
+          <div class="layui-form-item" style="margin: 0 0 12px 0;">
+            <label class="layui-form-label" style="width: 110px;">CSV 文件</label>
+            <div class="layui-input-block" style="margin-left: 130px;">
+              <input type="file" id="ID_pull_import_file" accept=".csv,text/csv" />
+            </div>
+          </div>
+          <div style="font-size: 12px; color: #666; margin-left: 130px;">
+            建议先下载模板，填写后再导入，编码建议 UTF-8。
+          </div>
+        </div>
+      </div>
+    </script>
+
   <script>
     layui.use(["table", "layer", "form", "tabs", "jquery"], function () {
       let table = layui.table;
@@ -288,6 +320,210 @@
       let form = layui.form;
       let tabs = layui.tabs;
       let $ = layui.jquery;
+      const IMPORT_HEADERS = {
+        vhost: ["vhost", "虚拟主机(vhost)", "虚拟主机"],
+        app: ["app", "应用名(app)", "应用名"],
+        stream: ["stream", "流id(stream)", "流id"],
+        url: ["url", "源流地址(url)", "源流地址"],
+        audio_type: ["audio_type", "音频设置(audio_type)", "音频设置"],
+      };
+
+      function normalizeHeader(value) {
+        return String(value || "").trim().toLowerCase();
+      }
+
+      function findHeaderIndex(headers, aliases) {
+        const map = new Map(headers.map((h, idx) => [normalizeHeader(h), idx]));
+        for (const alias of aliases) {
+          const idx = map.get(normalizeHeader(alias));
+          if (idx !== undefined) return idx;
+        }
+        return -1;
+      }
+
+      function parseCsvLine(line) {
+        const out = [];
+        let current = "";
+        let inQuote = false;
+        for (let i = 0; i < line.length; i += 1) {
+          const ch = line[i];
+          if (ch === '"') {
+            const next = line[i + 1];
+            if (inQuote && next === '"') {
+              current += '"';
+              i += 1;
+            } else {
+              inQuote = !inQuote;
+            }
+            continue;
+          }
+          if (ch === "," && !inQuote) {
+            out.push(current);
+            current = "";
+            continue;
+          }
+          current += ch;
+        }
+        out.push(current);
+        return out;
+      }
+
+      function validateImportCsvText(csvText) {
+        const content = String(csvText || "").replace(/^\uFEFF/, "").trim();
+        if (!content) {
+          return { ok: false, reason: "CSV 文件为空" };
+        }
+
+        const lines = content
+          .split(/\r?\n/)
+          .map((x) => x.trim())
+          .filter((x) => x.length > 0);
+        if (lines.length < 2) {
+          return { ok: false, reason: "CSV 需包含表头和至少一行数据" };
+        }
+
+        const headers = parseCsvLine(lines[0]);
+        const appIdx = findHeaderIndex(headers, IMPORT_HEADERS.app);
+        const streamIdx = findHeaderIndex(headers, IMPORT_HEADERS.stream);
+        const urlIdx = findHeaderIndex(headers, IMPORT_HEADERS.url);
+        const audioIdx = findHeaderIndex(headers, IMPORT_HEADERS.audio_type);
+
+        if (appIdx < 0 || streamIdx < 0 || urlIdx < 0) {
+          return { ok: false, reason: "CSV 缺少必要列：app、stream、url" };
+        }
+
+        const keySet = new Set();
+        for (let i = 1; i < lines.length; i += 1) {
+          const row = parseCsvLine(lines[i]);
+          const app = String(row[appIdx] || "").trim();
+          const stream = String(row[streamIdx] || "").trim();
+          const url = String(row[urlIdx] || "").trim();
+          const audio = audioIdx >= 0 ? String(row[audioIdx] || "").trim() : "";
+
+          if (!app || !stream || !url) {
+            return { ok: false, reason: `第 ${i + 1} 行：app/stream/url 不能为空` };
+          }
+          if (!/^[a-zA-Z0-9._-]+$/.test(app)) {
+            return { ok: false, reason: `第 ${i + 1} 行：app 格式不合法` };
+          }
+          if (!/^[a-zA-Z0-9._-]+$/.test(stream)) {
+            return { ok: false, reason: `第 ${i + 1} 行：stream 格式不合法` };
+          }
+          if (!/^(rtsp|rtmp|http|https):\/\//.test(url)) {
+            return { ok: false, reason: `第 ${i + 1} 行：url 必须以 rtsp/rtmp/http/https 开头` };
+          }
+          if (audio && !["0", "1", "2"].includes(audio)) {
+            return { ok: false, reason: `第 ${i + 1} 行：audio_type 必须为 0/1/2` };
+          }
+          const key = `${app}@@${stream}`;
+          if (keySet.has(key)) {
+            return { ok: false, reason: `第 ${i + 1} 行：CSV 内存在重复 app/stream` };
+          }
+          keySet.add(key);
+        }
+        return { ok: true };
+      }
+
+      function escapeHtml(text) {
+        return String(text == null ? "" : text)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function getErrorField(rowObj, aliases) {
+        if (!rowObj || typeof rowObj !== "object") return "";
+        const keys = Object.keys(rowObj);
+        const aliasSet = new Set(aliases.map((x) => normalizeHeader(x)));
+        for (const key of keys) {
+          if (aliasSet.has(normalizeHeader(key))) {
+            return String(rowObj[key] || "");
+          }
+        }
+        return "";
+      }
+
+      function showImportResultDialog(res) {
+        const s = res.summary || {};
+        const errors = Array.isArray(res.errors) ? res.errors : [];
+        const imported = Array.isArray(res.imported) ? res.imported : [];
+
+        let summaryHtml = `
+          <div style="margin-bottom: 12px; line-height: 1.9;">
+            <span style="margin-right: 12px;">总行数：<b>${s.total || 0}</b></span>
+            <span style="margin-right: 12px;">新增：<b style="color:#16b777;">${s.created || 0}</b></span>
+            <span style="margin-right: 12px;">覆盖：<b style="color:#1e9fff;">${s.overwritten || 0}</b></span>
+            <span style="margin-right: 12px;">跳过：<b style="color:#ffb800;">${s.skipped || 0}</b></span>
+            <span>失败：<b style="color:#ff5722;">${s.failed || 0}</b></span>
+          </div>
+        `;
+
+        let importedRows = imported
+          .slice(0, 20)
+          .map(
+            (item) => `
+            <tr>
+              <td>${escapeHtml(item.vhost || "")}</td>
+              <td>${escapeHtml(item.app || "")}</td>
+              <td>${escapeHtml(item.stream || "")}</td>
+            </tr>`
+          )
+          .join("");
+        if (!importedRows) {
+          importedRows = '<tr><td colspan="3" style="text-align:center;color:#999;">无</td></tr>';
+        }
+
+        let errorRows = errors
+          .slice(0, 30)
+          .map((item) => {
+            const row = item.row || {};
+            const app = getErrorField(row, IMPORT_HEADERS.app);
+            const stream = getErrorField(row, IMPORT_HEADERS.stream);
+            const url = getErrorField(row, IMPORT_HEADERS.url);
+            return `
+              <tr>
+                <td>${escapeHtml(item.line || "")}</td>
+                <td>${escapeHtml(item.reason || "")}</td>
+                <td>${escapeHtml(app)}</td>
+                <td>${escapeHtml(stream)}</td>
+                <td style="max-width:360px;word-break:break-all;">${escapeHtml(url)}</td>
+              </tr>`;
+          })
+          .join("");
+        if (!errorRows) {
+          errorRows = '<tr><td colspan="5" style="text-align:center;color:#999;">无</td></tr>';
+        }
+
+        const content = `
+          <div style="padding: 16px;">
+            ${summaryHtml}
+            <div style="margin-bottom: 8px; font-weight: 600;">导入成功（最多展示20条）</div>
+            <div style="max-height: 180px; overflow: auto; border: 1px solid #eee; margin-bottom: 12px;">
+              <table class="layui-table" style="margin: 0;">
+                <thead><tr><th>虚拟主机</th><th>应用名</th><th>流ID</th></tr></thead>
+                <tbody>${importedRows}</tbody>
+              </table>
+            </div>
+            <div style="margin-bottom: 8px; font-weight: 600;">失败明细（最多展示30条）</div>
+            <div style="max-height: 220px; overflow: auto; border: 1px solid #eee;">
+              <table class="layui-table" style="margin: 0;">
+                <thead><tr><th>行号</th><th>失败原因</th><th>应用名</th><th>流ID</th><th>源流地址</th></tr></thead>
+                <tbody>${errorRows}</tbody>
+              </table>
+            </div>
+          </div>
+        `;
+
+        layer.open({
+          type: 1,
+          title: "批量导入结果",
+          area: ["1100px", "760px"],
+          content,
+          btn: ["关闭"],
+        });
+      }
 
       // 渲染表格
       function renderTable() {
@@ -958,6 +1194,87 @@
       });
 
       // 监听添加按钮
+      $("#ID_pull_btnTemplate").on("click", function () {
+        window.open("/api/stream/pull-proxy-template", "_blank");
+      });
+
+      $("#ID_pull_btnExport").on("click", function () {
+        window.open("/api/stream/pull-proxy-export", "_blank");
+      });
+
+      $("#ID_pull_btnImport").on("click", function () {
+        layer.open({
+          type: 1,
+          title: "批量导入",
+          area: ["640px", "320px"],
+          content: $("#ID_tpl_import_pull_proxy").html(),
+          shadeClose: true,
+          btn: ["开始导入", "取消"],
+          success: function () {
+            form.render();
+          },
+          yes: function (index, layero) {
+            const fileInput = layero.find("#ID_pull_import_file")[0];
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+              layer.msg("请选择 CSV 文件", { time: 1500, offset: "t", shift: 1 });
+              return;
+            }
+
+            const mode = layero.find('input[name=\"import_mode\"]:checked').val() || "overwrite";
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = function (evt) {
+              const csvText = String((evt && evt.target && evt.target.result) || "");
+              const precheck = validateImportCsvText(csvText);
+              if (!precheck.ok) {
+                layer.msg(`CSV 校验失败：${precheck.reason}`, {
+                  time: 2500,
+                  offset: "t",
+                  shift: 1,
+                });
+                return;
+              }
+
+              $.ajax({
+                url: "/api/stream/pull-proxy-import",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                  mode,
+                  csv_text: csvText,
+                }),
+                timeout: 15000,
+                success: function (res) {
+                  if (res.code !== 0) {
+                    layer.msg("导入失败：" + (res.msg || "未知错误"), {
+                      time: 2500,
+                      offset: "t",
+                      shift: 1,
+                    });
+                    return;
+                  }
+
+                  layer.close(index);
+                  showImportResultDialog(res);
+                  renderTable();
+                },
+                error: function () {
+                  layer.msg("导入请求失败", {
+                    time: 2500,
+                    offset: "t",
+                    shift: 1,
+                  });
+                },
+              });
+            };
+            reader.onerror = function () {
+              layer.msg("读取文件失败", { time: 1500, offset: "t", shift: 1 });
+            };
+            reader.readAsText(file, "utf-8");
+          },
+        });
+      });
+
       $("#ID_pull_url_btn").on("click", function () {
         layer.open({
           type: 1,
