@@ -31,7 +31,7 @@ from utils import get_video_shanghai_time, get_zlm_secret, summarize_existing_re
 
 # =========================================================
 # zlmediakit 地址
-ZLM_SERVER = "http://172.18.0.2:80"
+ZLM_SERVER = "http://127.0.0.1:8080"
 # zlmediakit 密钥
 ZLM_SECRET = get_zlm_secret("/opt/media/conf/config.ini")
 # zlmediakit 录像
