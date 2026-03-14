@@ -511,24 +511,28 @@
               playerElement = document.getElementById("ID_player");
               statusElement = document.getElementById("ID_status");
 
-              let hasfMP4 = Array.isArray(data.schemas)
-                ? data.schemas.some((item) => item.schema === "fmp4")
+              let hasRTSP = Array.isArray(data.schemas)
+                ? data.schemas.some((item) => item.schema === "rtsp")
                 : false;
 
-              if (!hasfMP4) {
+              if (!hasRTSP) {
                 if (statusElement) {
-                  statusElement.textContent = "请在设置中开启 HTTP-fMP4 分发";
+                  statusElement.textContent = "WebRTC 播放需转发 RTSP";
                   statusElement.style.display = "flex";
                 }
               } else {
                 let stopped = false;
                 let retryCount = 0;
                 let retryTimer = null;
-                let waitingTimer = null;
+                let rtcPlayer = null;
 
-                const baseUrl = `http://${window.location.hostname}:8080/${encodeURIComponent(
+                const webrtcUrl = `/index/api/webrtc?app=${encodeURIComponent(
                   data.app
-                )}/${encodeURIComponent(data.stream)}.live.mp4`;
+                )}&stream=${encodeURIComponent(
+                  data.stream
+                )}&type=play&vhost=${encodeURIComponent(
+                  data.vhost || "__defaultVhost__"
+                )}`;
 
                 const showStatus = (text) => {
                   if (!statusElement) return;
@@ -546,17 +550,74 @@
                     clearTimeout(retryTimer);
                     retryTimer = null;
                   }
-                  if (waitingTimer !== null) {
-                    clearTimeout(waitingTimer);
-                    waitingTimer = null;
+                };
+
+                const closePlayer = () => {
+                  if (rtcPlayer) {
+                    try {
+                      rtcPlayer.close();
+                    } catch (e) {}
+                    rtcPlayer = null;
+                  }
+                  if (playerElement) {
+                    playerElement.srcObject = null;
+                    playerElement.load();
                   }
                 };
 
-                const buildUrlWithTs = () => {
-                  const ts = Date.now();
-                  return baseUrl.indexOf("?") >= 0
-                    ? `${baseUrl}&_t=${ts}`
-                    : `${baseUrl}?_t=${ts}`;
+                const startPlay = () => {
+                  if (stopped || !playerElement) return;
+                  if (
+                    typeof ZLMRTCClient === "undefined" ||
+                    !ZLMRTCClient.Endpoint
+                  ) {
+                    showStatus("WebRTC 库未加载");
+                    return;
+                  }
+                  closePlayer();
+                  showStatus("连接中...");
+
+                  rtcPlayer = new ZLMRTCClient.Endpoint({
+                    element: playerElement,
+                    debug: false,
+                    zlmsdpUrl: webrtcUrl,
+                    recvOnly: true,
+                    videoEnable: true,
+                    audioEnable: false,
+                    simulcast: false,
+                    usedatachannel: false,
+                  });
+
+                  rtcPlayer.on(ZLMRTCClient.Events.WEBRTC_ON_REMOTE_STREAMS, () => {
+                    retryCount = 0;
+                    hideStatus();
+                  });
+
+                  rtcPlayer.on(
+                    ZLMRTCClient.Events.WEBRTC_OFFER_ANWSER_EXCHANGE_FAILED,
+                    () => {
+                      scheduleReconnect();
+                    }
+                  );
+
+                  rtcPlayer.on(ZLMRTCClient.Events.WEBRTC_NOT_SUPPORT, () => {
+                    showStatus("浏览器不支持 WebRTC");
+                  });
+
+                  rtcPlayer.on(
+                    ZLMRTCClient.Events.WEBRTC_ON_CONNECTION_STATE_CHANGE,
+                    (state) => {
+                      if (stopped) return;
+                      if (state === "connected") {
+                        retryCount = 0;
+                        hideStatus();
+                        return;
+                      }
+                      if (state === "failed" || state === "disconnected") {
+                        scheduleReconnect();
+                      }
+                    }
+                  );
                 };
 
                 const scheduleReconnect = () => {
@@ -573,63 +634,17 @@
                   retryTimer = setTimeout(() => {
                     retryTimer = null;
                     if (stopped || !playerElement) return;
-
-                    const url = buildUrlWithTs();
-                    playerElement.pause();
-                    playerElement.src = url;
-                    playerElement.load();
-                    const p = playerElement.play();
-                    if (p && typeof p.catch === "function") {
-                      p.catch(() => { });
-                    }
+                    startPlay();
                     retryCount += 1;
                   }, delay);
                 };
 
-                const onPlaying = () => {
-                  retryCount = 0;
-                  clearTimers();
-                  hideStatus();
-                };
-                const onCanPlay = () => {
-                  hideStatus();
-                };
-                const onWaiting = () => {
-                  if (stopped) return;
-                  if (waitingTimer !== null) return;
-                  waitingTimer = setTimeout(() => {
-                    waitingTimer = null;
-                    scheduleReconnect();
-                  }, 4000);
-                };
-                const onError = () => scheduleReconnect();
-                const onStalled = () => scheduleReconnect();
-                const onEnded = () => scheduleReconnect();
-
-                playerElement.addEventListener("playing", onPlaying);
-                playerElement.addEventListener("canplay", onCanPlay);
-                playerElement.addEventListener("waiting", onWaiting);
-                playerElement.addEventListener("error", onError);
-                playerElement.addEventListener("stalled", onStalled);
-                playerElement.addEventListener("ended", onEnded);
-
-                playerElement.src = buildUrlWithTs();
-                playerElement.load();
-                showStatus("连接中...");
-                const p = playerElement.play();
-                if (p && typeof p.catch === "function") {
-                  p.catch(() => { });
-                }
+                startPlay();
 
                 playerElement.__streamui_cleanup__ = () => {
                   stopped = true;
                   clearTimers();
-                  playerElement.removeEventListener("playing", onPlaying);
-                  playerElement.removeEventListener("canplay", onCanPlay);
-                  playerElement.removeEventListener("waiting", onWaiting);
-                  playerElement.removeEventListener("error", onError);
-                  playerElement.removeEventListener("stalled", onStalled);
-                  playerElement.removeEventListener("ended", onEnded);
+                  closePlayer();
                 };
               }
 
@@ -799,6 +814,7 @@
                 }
                 playerElement.pause();
                 playerElement.removeAttribute("src");
+                playerElement.srcObject = null;
                 playerElement.load();
               }
             },

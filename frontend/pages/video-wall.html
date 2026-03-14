@@ -160,7 +160,7 @@
 
           streamTreeLoading = new Promise((resolve, reject) => {
             $.ajax({
-              url: "/api/stream/streamid-list?schema=fmp4",
+              url: "/api/stream/streamid-list?schema=rtsp",
               method: "GET",
               dataType: "json",
               timeout: 10000,
@@ -189,13 +189,22 @@
           this.container = container; //  挂载到 ID_videowall_container
           this.index = index; // 分屏索引
           this.element = null;
-          this.baseUrl = null;
+          this.zlmsdpUrl = null;
           this.isStopped = true;
           this.retryCount = 0;
           this.retryTimer = null;
-          this.waitingTimer = null;
+          this.endpoint = null;
 
           this.init();
+        }
+
+        function buildWebrtcUrl(app, stream, vhost) {
+          const _vhost = vhost || "__defaultVhost__";
+          return `/index/api/webrtc?app=${encodeURIComponent(
+            app
+          )}&stream=${encodeURIComponent(stream)}&type=play&vhost=${encodeURIComponent(
+            _vhost
+          )}`;
         }
 
         VideoCell.prototype.init = function () {
@@ -225,41 +234,12 @@
 
           this.playerEl.addEventListener("playing", () => {
             this.retryCount = 0;
-            this.clearWaitingTimer();
             this.hideStatus();
           });
 
           this.playerEl.addEventListener("canplay", () => {
             this.hideStatus();
           });
-
-          this.playerEl.addEventListener("waiting", () => {
-            if (this.isStopped || !this.baseUrl) return;
-            if (this.waitingTimer !== null) return;
-            this.waitingTimer = setTimeout(() => {
-              this.waitingTimer = null;
-              this.scheduleReconnect();
-            }, 4000);
-          });
-
-          this.playerEl.addEventListener("stalled", () => {
-            this.scheduleReconnect();
-          });
-
-          this.playerEl.addEventListener("error", () => {
-            this.scheduleReconnect();
-          });
-
-          this.playerEl.addEventListener("ended", () => {
-            this.scheduleReconnect();
-          });
-        };
-
-        VideoCell.prototype.clearWaitingTimer = function () {
-          if (this.waitingTimer !== null) {
-            clearTimeout(this.waitingTimer);
-            this.waitingTimer = null;
-          }
         };
 
         VideoCell.prototype.clearRetryTimer = function () {
@@ -280,18 +260,74 @@
           this.statusEl.style.display = "none";
         };
 
-        VideoCell.prototype.buildUrlWithTs = function () {
-          if (!this.baseUrl) return null;
-          const ts = Date.now();
-          return this.baseUrl.indexOf("?") >= 0
-            ? `${this.baseUrl}&_t=${ts}`
-            : `${this.baseUrl}?_t=${ts}`;
+        VideoCell.prototype.closeEndpoint = function () {
+          if (this.endpoint) {
+            try {
+              this.endpoint.close();
+            } catch (e) {}
+            this.endpoint = null;
+          }
+          if (this.playerEl) {
+            this.playerEl.srcObject = null;
+            this.playerEl.load();
+          }
+        };
+
+        VideoCell.prototype.startPlay = function () {
+          if (this.isStopped || !this.zlmsdpUrl || !this.playerEl) return;
+          if (typeof ZLMRTCClient === "undefined" || !ZLMRTCClient.Endpoint) {
+            this.showStatus("WebRTC 库未加载");
+            return;
+          }
+
+          this.closeEndpoint();
+          this.showStatus("连接中...");
+
+          this.endpoint = new ZLMRTCClient.Endpoint({
+            element: this.playerEl,
+            debug: false,
+            zlmsdpUrl: this.zlmsdpUrl,
+            recvOnly: true,
+            videoEnable: true,
+            audioEnable: false,
+            simulcast: false,
+            usedatachannel: false,
+          });
+
+          this.endpoint.on(ZLMRTCClient.Events.WEBRTC_ON_REMOTE_STREAMS, () => {
+            this.retryCount = 0;
+            this.hideStatus();
+          });
+
+          this.endpoint.on(
+            ZLMRTCClient.Events.WEBRTC_OFFER_ANWSER_EXCHANGE_FAILED,
+            () => {
+              this.scheduleReconnect();
+            }
+          );
+
+          this.endpoint.on(ZLMRTCClient.Events.WEBRTC_NOT_SUPPORT, () => {
+            this.showStatus("浏览器不支持 WebRTC");
+          });
+
+          this.endpoint.on(
+            ZLMRTCClient.Events.WEBRTC_ON_CONNECTION_STATE_CHANGE,
+            (state) => {
+              if (this.isStopped) return;
+              if (state === "connected") {
+                this.retryCount = 0;
+                this.hideStatus();
+                return;
+              }
+              if (state === "failed" || state === "disconnected") {
+                this.scheduleReconnect();
+              }
+            }
+          );
         };
 
         VideoCell.prototype.scheduleReconnect = function () {
-          if (this.isStopped || !this.baseUrl || !this.playerEl) return;
-
-          this.clearWaitingTimer();
+          if (this.isStopped || !this.zlmsdpUrl || !this.playerEl) return;
           this.clearRetryTimer();
 
           const retryIndex = Math.min(this.retryCount, 6);
@@ -303,18 +339,8 @@
 
           this.retryTimer = setTimeout(() => {
             this.retryTimer = null;
-            if (this.isStopped || !this.baseUrl || !this.playerEl) return;
-
-            const url = this.buildUrlWithTs();
-            if (!url) return;
-
-            this.playerEl.pause();
-            this.playerEl.src = url;
-            this.playerEl.load();
-            const p = this.playerEl.play();
-            if (p && typeof p.catch === "function") {
-              p.catch(() => {});
-            }
+            if (this.isStopped || !this.zlmsdpUrl || !this.playerEl) return;
+            this.startPlay();
             this.retryCount += 1;
           }, delay);
         };
@@ -326,20 +352,8 @@
 
           this.isStopped = false;
           this.retryCount = 0;
-          this.baseUrl = `http://${window.location.hostname}:8080/${encodeURIComponent(
-            app
-          )}/${encodeURIComponent(stream)}.live.mp4`;
-
-          const url = this.buildUrlWithTs();
-          if (!url) return;
-
-          this.showStatus("连接中...");
-          this.playerEl.src = url;
-          this.playerEl.load();
-          const p = this.playerEl.play();
-          if (p && typeof p.catch === "function") {
-            p.catch(() => {});
-          }
+          this.zlmsdpUrl = buildWebrtcUrl(app, stream, "__defaultVhost__");
+          this.startPlay();
         };
 
         VideoCell.prototype.openLayer = function () {
@@ -390,16 +404,14 @@
 
         VideoCell.prototype.stopPlay = function () {
           this.isStopped = true;
-          this.baseUrl = null;
+          this.zlmsdpUrl = null;
           this.retryCount = 0;
-          this.clearWaitingTimer();
           this.clearRetryTimer();
           this.hideStatus();
 
           if (!this.playerEl) return;
+          this.closeEndpoint();
           this.playerEl.pause();
-          this.playerEl.removeAttribute("src");
-          this.playerEl.load();
         };
 
         window.destroyVideoCells = function () {
