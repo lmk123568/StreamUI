@@ -29,7 +29,8 @@ from utils import get_video_shanghai_time, get_zlm_secret, summarize_existing_re
 
 # =========================================================
 # zlmediakit 地址
-ZLM_SERVER = "http://127.0.0.1:8080"
+# ZLM_SERVER = "http://127.0.0.1:8080"
+ZLM_SERVER = os.getenv("ZLM_SERVER", "http://zlm-server:80")
 # zlmediakit 密钥
 ZLM_SECRET = get_zlm_secret("/opt/media/conf/config.ini")
 # zlmediakit 录像
@@ -731,18 +732,27 @@ async def get_start_record(
     if retention_days <= 0 or retention_days > 30:
         return {"code": -1, "msg": "录像天数范围建议 1-30 天"}
 
-    db_row = db_upsert_record_policy(
-        vhost=str(vhost),
-        app=str(app),
-        stream=str(stream),
-        retention_days=retention_days,
-        enabled=True,
-    )
     query["max_second"] = "300"
 
+    # 先启动录制，避免数据库偶发异常阻断真实录制动作
     response = await client.get(url, params=query)
+
     raw = response.json()
-    raw["record_policy"] = db_row
+
+    if raw.get("code") == 0:
+        try:
+            db_row = db_upsert_record_policy(
+                vhost=str(vhost),
+                app=str(app),
+                stream=str(stream),
+                retention_days=retention_days,
+                enabled=True,
+            )
+            raw["record_policy"] = db_row
+        except Exception as e:
+            raw["record_policy"] = None
+            raw["record_policy_warning"] = f"录制已开启，但策略写入数据库失败: {e}"
+
     return raw
 
 
@@ -1131,5 +1141,5 @@ async def get_restart_zlm(delay_ms: int = Query(0, description="延迟重启（�
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=10801, reload=True)
-    # uvicorn.run("main:app", host="0.0.0.0", port=10801, reload=False)
+    # uvicorn.run("main:app", host="0.0.0.0", port=10801, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=10801, reload=False)

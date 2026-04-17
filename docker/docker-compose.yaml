@@ -6,7 +6,12 @@ services:
     image: streamui-web
     container_name: streamui-web-server
     command: "bash start.sh"
-    network_mode: "host"
+    # network_mode: "host"
+    ports:
+      - "10800:10800"
+      - "10801:10801"
+    environment:
+      - ZLM_SERVER=http://zlm-server:80
     volumes:
       - ../:/workspace
       - /opt/media/bin/www/record:/opt/media/bin/www/record

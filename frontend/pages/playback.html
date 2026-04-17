@@ -229,6 +229,29 @@
         let rafSeekId = 0;
         let pendingSeekTs = null;
 
+        function getRecStart(rec) {
+          return parseTime(rec.start);
+        }
+
+        function getRecEnd(rec) {
+          if (typeof rec.__actualDurationMs === "number" && rec.__actualDurationMs > 0) {
+            return getRecStart(rec) + rec.__actualDurationMs;
+          }
+          return parseTime(rec.end);
+        }
+
+        function recalcRange() {
+          if (!recordings.length) {
+            startTime = 0;
+            endTime = 0;
+            durationMs = 1;
+            return;
+          }
+          startTime = getRecStart(recordings[0]);
+          endTime = recordings.reduce((maxTs, rec) => Math.max(maxTs, getRecEnd(rec)), startTime);
+          durationMs = Math.max(1, endTime - startTime);
+        }
+
         const onMouseMove = (e) => {
           if (!isDragging || !timeline) return;
           const rect = timeline.getBoundingClientRect();
@@ -272,6 +295,26 @@
           }
         };
 
+        const onLoadedMetadata = () => {
+          if (!videoPlayer) return;
+          const rec = getRecordingFromCurrentSrc();
+          if (!rec) return;
+
+          const d = Number(videoPlayer.duration);
+          if (!Number.isFinite(d) || d <= 0) return;
+          const actualMs = Math.max(1000, Math.round(d * 1000));
+          const declaredMs = Math.max(1000, parseTime(rec.end) - parseTime(rec.start));
+
+          // 后端可能按默认 300s 估算末段时长，这里用真实文件时长纠正时间轴
+          if (Math.abs(actualMs - declaredMs) > 1500) {
+            rec.__actualDurationMs = actualMs;
+            rec.end = new Date(parseTime(rec.start) + actualMs).toISOString();
+            recalcRange();
+            renderTimeline();
+            updatePlayhead(parseTime(rec.start) + videoPlayer.currentTime * 1000);
+          }
+        };
+
         function getRecordingFromCurrentSrc() {
           if (!videoPlayer || !videoPlayer.src || recordings.length === 0) {
             return null;
@@ -297,7 +340,8 @@
           const rec = getRecordingFromCurrentSrc();
           if (!rec) return;
 
-          const videoLocalTime = videoPlayer.currentTime * 1000;
+          const maxLocal = Math.max(0, getRecEnd(rec) - parseTime(rec.start));
+          const videoLocalTime = Math.min(videoPlayer.currentTime * 1000, maxLocal);
           const videoStartTime = parseTime(rec.start);
           const absoluteTime = videoStartTime + videoLocalTime;
 
@@ -400,35 +444,43 @@
             pendingSeekTs = null;
 
             let rec = recordings.find(
-              (r) => ts >= parseTime(r.start) && ts < parseTime(r.end)
+              (r) => ts >= getRecStart(r) && ts < getRecEnd(r)
             );
             let targetTs = ts;
             if (!rec) {
-              const nextRec = recordings.find((r) => parseTime(r.start) > ts);
+              const nextRec = recordings.find((r) => getRecStart(r) > ts);
               if (nextRec) {
                 rec = nextRec;
-                targetTs = parseTime(rec.start) + 1000;
+                targetTs = getRecStart(rec) + 1000;
               } else {
                 rec = recordings[recordings.length - 1];
-                targetTs = Math.max(parseTime(rec.start), parseTime(rec.end) - 1000);
+                targetTs = Math.max(getRecStart(rec), getRecEnd(rec) - 1000);
               }
             }
-
+            const videoStart = getRecStart(rec);
+            const recDurationMs = Math.max(1000, getRecEnd(rec) - videoStart);
+            targetTs = Math.min(targetTs, videoStart + recDurationMs - 50);
             updatePlayhead(targetTs);
-
-            const videoStart = parseTime(rec.start);
             const seekTimeInVideo = Math.max(0, (targetTs - videoStart) / 1000);
 
             const currentSrc = videoPlayer.src || "";
             const isSameFile = currentSrc.endsWith(rec.filename);
 
             if (isSameFile) {
-              videoPlayer.currentTime = seekTimeInVideo;
+              const browserDuration = Number(videoPlayer.duration);
+              const maxSeek = Number.isFinite(browserDuration) && browserDuration > 0
+                ? Math.max(0, browserDuration - 0.05)
+                : seekTimeInVideo;
+              videoPlayer.currentTime = Math.min(seekTimeInVideo, maxSeek);
               return;
             }
 
             videoPlayer.onloadedmetadata = function () {
-              videoPlayer.currentTime = seekTimeInVideo;
+              const browserDuration = Number(videoPlayer.duration);
+              const maxSeek = Number.isFinite(browserDuration) && browserDuration > 0
+                ? Math.max(0, browserDuration - 0.05)
+                : seekTimeInVideo;
+              videoPlayer.currentTime = Math.min(seekTimeInVideo, maxSeek);
               const p = videoPlayer.play();
               if (p && typeof p.catch === "function") p.catch(() => { });
               videoPlayer.onloadedmetadata = null;
@@ -451,6 +503,7 @@
 
           videoPlayer?.removeEventListener("ended", onEnded);
           videoPlayer?.removeEventListener("timeupdate", onTimeUpdate);
+          videoPlayer?.removeEventListener("loadedmetadata", onLoadedMetadata);
 
           downloadBtn?.removeEventListener("click", onDownloadClick);
 
@@ -469,6 +522,7 @@
 
         videoPlayer?.addEventListener("ended", onEnded);
         videoPlayer?.addEventListener("timeupdate", onTimeUpdate);
+        videoPlayer?.addEventListener("loadedmetadata", onLoadedMetadata);
 
         if (downloadBtn) {
           downloadBtn.addEventListener("click", onDownloadClick);
@@ -489,9 +543,7 @@
               return;
             }
 
-            startTime = parseTime(recordings[0].start);
-            endTime = parseTime(recordings[recordings.length - 1].end);
-            durationMs = Math.max(1, endTime - startTime);
+            recalcRange();
 
             renderTimeline();
             updatePlayhead(startTime);
