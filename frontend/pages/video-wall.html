@@ -1,499 +1,407 @@
 <!DOCTYPE html>
 <html lang="zh">
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1"
-    />
-    <style>
-      .layui-tree-iconClick .layui-icon-file::before {
-        content: "\e6ed" !important;
-        color: #23292e;
-        font-size: 16px;
-        margin-right: 0;
-      }
 
-      #ID_videowall_container.layout-1 {
-        grid-template-rows: 1fr;
-        grid-template-columns: 1fr;
-      }
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <style>
+    .layui-tree-iconClick .layui-icon-file::before {
+      content: "\e6ed" !important;
+      color: #23292e;
+      font-size: 16px;
+      margin-right: 0;
+    }
 
-      #ID_videowall_container.layout-4 {
-        grid-template-rows: 1fr 1fr;
-        grid-template-columns: 1fr 1fr;
-      }
+    #ID_videowall_container.layout-1 {
+      grid-template-rows: 1fr;
+      grid-template-columns: 1fr;
+    }
 
-      #ID_videowall_container.layout-9 {
-        grid-template-rows: 1fr 1fr 1fr;
-        grid-template-columns: 1fr 1fr 1fr;
-      }
+    #ID_videowall_container.layout-4 {
+      grid-template-rows: 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+    }
 
-      #ID_videowall_container.layout-16 {
-        grid-template-rows: 1fr 1fr 1fr 1fr;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
-      }
+    #ID_videowall_container.layout-9 {
+      grid-template-rows: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
+    }
 
-      .video-cell {
-        position: relative;
-        width: 100%;
-        height: 100%;
-        background-color: #2f363c;
-        overflow: hidden;
-      }
+    #ID_videowall_container.layout-16 {
+      grid-template-rows: 1fr 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
 
-      .video-cell video {
-        width: 100%;
-        height: 100%;
-        background-color: #2f363c;
-        border: 1px solid #e7e7e7;
-        box-sizing: border-box;
-      }
+    .video-cell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background-color: #2f363c;
+      overflow: hidden;
+    }
 
-      .video-cell .video-status {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        display: none;
-        align-items: center;
-        color: #eeeeee;
-        font-weight: 500;
-        font-size: 18px;
-      }
+    .video-cell video {
+      width: 100%;
+      height: 100%;
+      background-color: #2f363c;
+      border: 1px solid #e7e7e7;
+      box-sizing: border-box;
+    }
 
-      .video-cell .video-btns {
-        position: absolute;
-        top: 10px;
-        /* 距离顶部 10px */
-        right: 10px;
-        /* 距离右侧 10px */
-        opacity: 0;
-        transition: opacity 0.3s;
-        z-index: 10;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        /* 防止点击穿透 */
-        pointer-events: auto;
-      }
+    .video-cell .video-status {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      align-items: center;
+      color: #eeeeee;
+      font-weight: 500;
+      font-size: 18px;
+    }
 
-      .video-cell:hover .video-btns {
-        opacity: 1;
-      }
-    </style>
-  </head>
+    .video-cell .video-btns {
+      position: absolute;
+      top: 10px;
+      /* 距离顶部 10px */
+      right: 10px;
+      /* 距离右侧 10px */
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      /* 防止点击穿透 */
+      pointer-events: auto;
+    }
 
-  <body>
-    <!-- 控制按钮组 -->
-    <div
-      style="
+    .video-cell:hover .video-btns {
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- 控制按钮组 -->
+  <div style="
         display: flex;
         justify-content: center;
         align-items: center;
         height: 120px;
-      "
-    >
-      <div class="layui-btn-group">
-        <button class="layui-btn" id="ID_single">单屏</button>
-        <button class="layui-btn" id="ID_quad">四分屏</button>
-        <!-- <button class="layui-btn" id="ID_nine">九分屏</button> -->
-        <button class="layui-btn" id="ID_fullscreen">
-          <i class="layui-icon layui-icon-screen-full"></i>
-        </button>
-      </div>
+      ">
+    <div class="layui-btn-group">
+      <button class="layui-btn" id="ID_single">单屏</button>
+      <button class="layui-btn" id="ID_quad">四分屏</button>
+      <button class="layui-btn" id="ID_nine">九分屏</button>
+      <button class="layui-btn" id="ID_fullscreen">
+        <i class="layui-icon layui-icon-screen-full"></i>
+      </button>
     </div>
+  </div>
 
-    <!-- 视频墙 -->
-    <div style="display: flex; justify-content: center; margin: 0">
-      <div
-        id="ID_videowall_container"
-        style="width: 960px; height: 540px; display: grid"
-      ></div>
-    </div>
+  <!-- 视频墙 -->
+  <div style="display: flex; justify-content: center; margin: 0">
+    <div id="ID_videowall_container" style="width: 960px; height: 540px; display: grid"></div>
+  </div>
 
-    <!-- 流ID树 -->
-    <script id="ID_tpl_layer" type="text/html">
+  <!-- 流ID树 -->
+  <script id="ID_tpl_layer" type="text/html">
       <div id="ID_streamid_tree" style="margin: 12px;"></div>
     </script>
 
-    <script>
-      layui.use(function () {
-        let layer = layui.layer;
-        let tree = layui.tree;
-        let $ = layui.jquery;
+  <script>
+    layui.use(function () {
+      let layer = layui.layer;
+      let tree = layui.tree;
+      let $ = layui.jquery;
 
-        let nowVideoCells = [];
-        let streamTreeDataCache = null;
-        let streamTreeLoading = null;
+      let nowVideoCells = [];
+      let streamTreeDataCache = null;
+      let streamTreeLoading = null;
 
-        function buildStreamTreeData(data) {
-          const map = new Map();
+      function buildStreamTreeData(data) {
+        const map = new Map();
 
-          (Array.isArray(data) ? data : []).forEach((item) => {
-            const app = item.app;
-            const stream = item.stream;
-            if (!app || !stream) return;
+        (Array.isArray(data) ? data : []).forEach((item) => {
+          const app = item.app;
+          const stream = item.stream;
+          if (!app || !stream) return;
 
-            const info = { app, stream };
+          const info = { app, stream };
 
-            if (!map.has(app)) {
-              map.set(app, {
-                title: app,
-                children: [],
-              });
-            }
-
-            const appNode = map.get(app);
-            appNode.children.push({
-              title: stream,
-              channelInfo: info,
+          if (!map.has(app)) {
+            map.set(app, {
+              title: app,
+              children: [],
             });
+          }
+
+          const appNode = map.get(app);
+          appNode.children.push({
+            title: stream,
+            channelInfo: info,
           });
+        });
 
-          return Array.from(map.values());
-        }
+        return Array.from(map.values());
+      }
 
-        function getStreamTreeData() {
-          if (streamTreeDataCache) return Promise.resolve(streamTreeDataCache);
-          if (streamTreeLoading) return streamTreeLoading;
+      function getStreamTreeData() {
+        if (streamTreeDataCache) return Promise.resolve(streamTreeDataCache);
+        if (streamTreeLoading) return streamTreeLoading;
 
-          streamTreeLoading = new Promise((resolve, reject) => {
-            $.ajax({
-              url: "/api/stream/streamid-list?schema=fmp4",
-              method: "GET",
-              dataType: "json",
-              timeout: 10000,
-              success: function (res) {
-                if (res && res.code === 0) {
-                  streamTreeDataCache = buildStreamTreeData(res.data);
-                  resolve(streamTreeDataCache);
-                } else {
-                  reject(new Error((res && res.msg) || "获取流列表失败"));
-                }
-              },
-              error: function () {
-                reject(new Error("获取流列表失败"));
-              },
-              complete: function () {
-                streamTreeLoading = null;
-              },
-            });
+        streamTreeLoading = new Promise((resolve, reject) => {
+          $.ajax({
+            url: "/api/stream/streamid-list",
+            method: "GET",
+            dataType: "json",
+            timeout: 10000,
+            success: function (res) {
+              if (res && res.code === 0) {
+                streamTreeDataCache = buildStreamTreeData(res.data);
+                resolve(streamTreeDataCache);
+              } else {
+                reject(new Error((res && res.msg) || "获取流列表失败"));
+              }
+            },
+            error: function () {
+              reject(new Error("获取流列表失败"));
+            },
+            complete: function () {
+              streamTreeLoading = null;
+            },
           });
+        });
 
-          return streamTreeLoading;
-        }
+        return streamTreeLoading;
+      }
 
-        // 屏幕单元抽象
-        function VideoCell(container, index) {
-          this.container = container; //  挂载到 ID_videowall_container
-          this.index = index; // 分屏索引
-          this.element = null;
-          this.baseUrl = null;
-          this.isStopped = true;
-          this.retryCount = 0;
-          this.retryTimer = null;
-          this.waitingTimer = null;
+      // 屏幕单元抽象
+      function VideoCell(container, index) {
+        this.container = container; //  挂载到 ID_videowall_container
+        this.index = index; // 分屏索引
+        this.element = null;
+        this.app = null;
+        this.stream = null;
+        this.player = null;
 
-          this.init();
-        }
+        this.init();
+      }
 
-        VideoCell.prototype.init = function () {
-          // 创建 DOM 元素
-          this.element = document.createElement("div");
-          this.element.className = "video-cell";
-          this.element.innerHTML = `<video autoplay muted playsinline webkit-playsinline preload="none"></video>
+      VideoCell.prototype.init = function () {
+        // 创建 DOM 元素
+        this.element = document.createElement("div");
+        this.element.className = "video-cell";
+        this.element.innerHTML = `<video autoplay muted playsinline webkit-playsinline preload="none"></video>
                                       <div class="video-status"></div>
                                       <div class="video-btns">
                                         <button class="layui-btn config-btn layui-btn-sm" style="background-color: #16baaa; margin: 0" data-index="${this.index}">配置</button>
                                         <button class="layui-btn reset-btn layui-btn-sm" style="background-color: #ff5722; margin: 0" data-index="${this.index}">重置</button>
                                       </div>`;
 
-          // 将创建的 DOM 添加到父容器
-          this.container.appendChild(this.element);
+        // 将创建的 DOM 添加到父容器
+        this.container.appendChild(this.element);
 
-          this.playerEl = this.element.querySelector("video");
-          this.statusEl = this.element.querySelector(".video-status");
+        this.playerEl = this.element.querySelector("video");
+        this.statusEl = this.element.querySelector(".video-status");
 
-          // 配置按钮: 打开流ID树
-          let configBtn = this.element.querySelector(".config-btn");
-          configBtn.addEventListener("click", () => this.openLayer());
+        // 配置按钮: 打开流ID树
+        let configBtn = this.element.querySelector(".config-btn");
+        configBtn.addEventListener("click", () => this.openLayer());
 
-          // 重置按钮: 关闭fmp4连接并停止播放
-          let resetBtn = this.element.querySelector(".reset-btn");
-          resetBtn.addEventListener("click", () => this.stopPlay());
+        // 重置按钮: 关闭 WebRTC 会话并停止播放
+        let resetBtn = this.element.querySelector(".reset-btn");
+        resetBtn.addEventListener("click", () => this.stopPlay());
 
-          this.playerEl.addEventListener("playing", () => {
-            this.retryCount = 0;
-            this.clearWaitingTimer();
-            this.hideStatus();
-          });
-
-          this.playerEl.addEventListener("canplay", () => {
-            this.hideStatus();
-          });
-
-          this.playerEl.addEventListener("waiting", () => {
-            if (this.isStopped || !this.baseUrl) return;
-            if (this.waitingTimer !== null) return;
-            this.waitingTimer = setTimeout(() => {
-              this.waitingTimer = null;
-              this.scheduleReconnect();
-            }, 4000);
-          });
-
-          this.playerEl.addEventListener("stalled", () => {
-            this.scheduleReconnect();
-          });
-
-          this.playerEl.addEventListener("error", () => {
-            this.scheduleReconnect();
-          });
-
-          this.playerEl.addEventListener("ended", () => {
-            this.scheduleReconnect();
-          });
-        };
-
-        VideoCell.prototype.clearWaitingTimer = function () {
-          if (this.waitingTimer !== null) {
-            clearTimeout(this.waitingTimer);
-            this.waitingTimer = null;
-          }
-        };
-
-        VideoCell.prototype.clearRetryTimer = function () {
-          if (this.retryTimer !== null) {
-            clearTimeout(this.retryTimer);
-            this.retryTimer = null;
-          }
-        };
-
-        VideoCell.prototype.showStatus = function (text) {
-          if (!this.statusEl) return;
-          this.statusEl.textContent = text || "";
-          this.statusEl.style.display = "flex";
-        };
-
-        VideoCell.prototype.hideStatus = function () {
-          if (!this.statusEl) return;
-          this.statusEl.style.display = "none";
-        };
-
-        VideoCell.prototype.buildUrlWithTs = function () {
-          if (!this.baseUrl) return null;
-          const ts = Date.now();
-          return this.baseUrl.indexOf("?") >= 0
-            ? `${this.baseUrl}&_t=${ts}`
-            : `${this.baseUrl}?_t=${ts}`;
-        };
-
-        VideoCell.prototype.scheduleReconnect = function () {
-          if (this.isStopped || !this.baseUrl || !this.playerEl) return;
-
-          this.clearWaitingTimer();
-          this.clearRetryTimer();
-
-          const retryIndex = Math.min(this.retryCount, 6);
-          const baseDelay = Math.min(15000, 1000 * Math.pow(2, retryIndex));
-          const jitter = Math.floor(Math.random() * 300);
-          const delay = baseDelay + jitter;
-
-          this.showStatus("离线，重连中...");
-
-          this.retryTimer = setTimeout(() => {
-            this.retryTimer = null;
-            if (this.isStopped || !this.baseUrl || !this.playerEl) return;
-
-            const url = this.buildUrlWithTs();
-            if (!url) return;
-
-            this.playerEl.pause();
-            this.playerEl.src = url;
-            this.playerEl.load();
-            const p = this.playerEl.play();
-            if (p && typeof p.catch === "function") {
-              p.catch(() => {});
-            }
-            this.retryCount += 1;
-          }, delay);
-        };
-
-        VideoCell.prototype.playStream = function (app, stream) {
-          this.stopPlay();
-
-          if (!app || !stream || !this.playerEl) return;
-
-          this.isStopped = false;
-          this.retryCount = 0;
-          this.baseUrl = `http://${window.location.hostname}:8080/${encodeURIComponent(
-            app
-          )}/${encodeURIComponent(stream)}.live.mp4`;
-
-          const url = this.buildUrlWithTs();
-          if (!url) return;
-
-          this.showStatus("连接中...");
-          this.playerEl.src = url;
-          this.playerEl.load();
-          const p = this.playerEl.play();
-          if (p && typeof p.catch === "function") {
-            p.catch(() => {});
-          }
-        };
-
-        VideoCell.prototype.openLayer = function () {
-          let self = this;
-
-          layer.open({
-            type: 1,
-            title: "流ID树",
-            area: ["300px", "324px"],
-            content: $("#ID_tpl_layer").html(),
-            success: function (layero, index) {
-              getStreamTreeData()
-                .then((treeData) => {
-                  tree.render({
-                    elem: "#ID_streamid_tree",
-                    data: treeData,
-                    click: function (obj) {
-                      if (!obj.data.channelInfo) return;
-
-                      layer.msg(
-                        `⏳ 正在连接 ${obj.data.channelInfo.app}/${obj.data.channelInfo.stream} ...`,
-                        {
-                          time: 1500,
-                          offset: "t",
-                          shift: 1,
-                        }
-                      );
-
-                      self.playStream(
-                        obj.data.channelInfo.app,
-                        obj.data.channelInfo.stream
-                      );
-
-                      layer.close(index);
-                    },
-                  });
-                })
-                .catch((err) => {
-                  layer.msg("❌ " + (err && err.message ? err.message : "获取流列表失败"), {
-                    time: 1500,
-                    offset: "t",
-                    shift: 1,
-                  });
-                });
+        // WHEP 播放器（WebRTC 拉流）
+        if (typeof window.WhepPlayer === "function") {
+          this.player = new window.WhepPlayer(this.playerEl, {
+            onStatus: (state, text) => {
+              if (state === "playing") {
+                this.hideStatus();
+              } else {
+                this.showStatus(text);
+              }
             },
           });
-        };
+        }
+      };
 
-        VideoCell.prototype.stopPlay = function () {
-          this.isStopped = true;
-          this.baseUrl = null;
-          this.retryCount = 0;
-          this.clearWaitingTimer();
-          this.clearRetryTimer();
-          this.hideStatus();
+      VideoCell.prototype.showStatus = function (text) {
+        if (!this.statusEl) return;
+        this.statusEl.textContent = text || "";
+        this.statusEl.style.display = "flex";
+      };
 
-          if (!this.playerEl) return;
-          this.playerEl.pause();
-          this.playerEl.removeAttribute("src");
-          this.playerEl.load();
-        };
+      VideoCell.prototype.hideStatus = function () {
+        if (!this.statusEl) return;
+        this.statusEl.style.display = "none";
+      };
 
-        window.destroyVideoCells = function () {
-          if (nowVideoCells.length > 0) {
-            nowVideoCells.forEach((cell) => {
-              // 停止播放
-              cell.stopPlay();
-              // 移除 DOM 元素
-              if (cell.element && cell.element.parentNode) {
-                cell.element.parentNode.removeChild(cell.element);
-              }
-            });
-          }
-          nowVideoCells = [];
-        };
+      VideoCell.prototype.playStream = function (app, stream) {
+        if (!app || !stream) return;
 
-        function setLayout(num) {
-          window.destroyVideoCells();
-
-          let container = document.getElementById("ID_videowall_container");
-          // 设置布局：移除旧 class，添加新 class
-          container.className = ""; // 清空 class
-          container.classList.add(`layout-${num}`);
-
-          let fragment = document.createDocumentFragment();
-          // 创建屏幕实例
-          for (let i = 0; i < num; i++) {
-            let cell = new VideoCell(fragment, i);
-            nowVideoCells.push(cell);
-          }
-          container.appendChild(fragment);
+        if (!this.player) {
+          this.showStatus("WebRTC 播放器未加载");
+          return;
         }
 
-        // 监听全屏状态变化
-        const onFullscreenChange = () => {
-          let container = document.getElementById("ID_videowall_container");
-          let btns = container?.querySelectorAll(".video-btns");
+        this.app = app;
+        this.stream = stream;
+        this.showStatus("连接中...");
+        this.player.start(app, stream);
+      };
 
-          if (!container || !btns) return;
+      VideoCell.prototype.openLayer = function () {
+        let self = this;
 
-          if (document.fullscreenElement === container) {
-            // container 正在全屏 → 隐藏按钮
-            btns.forEach((btn) => {
-              btn.style.display = "none";
-            });
-          } else {
-            // 不是全屏 或 其他元素全屏 → 显示按钮
-            btns.forEach((btn) => {
-              btn.style.display = "flex"; // 恢复默认 display
-            });
-          }
-        };
-        document.addEventListener("fullscreenchange", onFullscreenChange);
+        layer.open({
+          type: 1,
+          title: "流ID树",
+          area: ["300px", "324px"],
+          content: $("#ID_tpl_layer").html(),
+          success: function (layero, index) {
+            getStreamTreeData()
+              .then((treeData) => {
+                tree.render({
+                  elem: "#ID_streamid_tree",
+                  data: treeData,
+                  click: function (obj) {
+                    if (!obj.data.channelInfo) return;
 
-        window.clearnTimer = function () {
-          document.removeEventListener("fullscreenchange", onFullscreenChange);
-        };
+                    layer.msg(
+                      `⏳ 正在连接 ${obj.data.channelInfo.app}/${obj.data.channelInfo.stream} ...`,
+                      {
+                        time: 1500,
+                        offset: "t",
+                        shift: 1,
+                      }
+                    );
 
-        function fullscreen(elem) {
-          if (!elem) {
-            console.error("元素未找到");
-            return;
-          }
+                    self.playStream(
+                      obj.data.channelInfo.app,
+                      obj.data.channelInfo.stream
+                    );
 
-          if (!document.fullscreenElement) {
-            // 进入全屏
-            elem.requestFullscreen().catch((err) => {
-              console.error("全屏失败:", err);
-            });
-          } else {
-            // 退出全屏
-            document.exitFullscreen();
-          }
+                    layer.close(index);
+                  },
+                });
+              })
+              .catch((err) => {
+                layer.msg("❌ " + (err && err.message ? err.message : "获取流列表失败"), {
+                  time: 1500,
+                  offset: "t",
+                  shift: 1,
+                });
+              });
+          },
+        });
+      };
+
+      VideoCell.prototype.stopPlay = function () {
+        this.app = null;
+        this.stream = null;
+        this.hideStatus();
+
+        if (this.player) {
+          this.player.stop();
+        }
+      };
+
+      window.destroyVideoCells = function () {
+        if (nowVideoCells.length > 0) {
+          nowVideoCells.forEach((cell) => {
+            // 停止播放
+            cell.stopPlay();
+            // 移除 DOM 元素
+            if (cell.element && cell.element.parentNode) {
+              cell.element.parentNode.removeChild(cell.element);
+            }
+          });
+        }
+        nowVideoCells = [];
+      };
+
+      function setLayout(num) {
+        window.destroyVideoCells();
+
+        let container = document.getElementById("ID_videowall_container");
+        // 设置布局：移除旧 class，添加新 class
+        container.className = ""; // 清空 class
+        container.classList.add(`layout-${num}`);
+
+        let fragment = document.createDocumentFragment();
+        // 创建屏幕实例
+        for (let i = 0; i < num; i++) {
+          let cell = new VideoCell(fragment, i);
+          nowVideoCells.push(cell);
+        }
+        container.appendChild(fragment);
+      }
+
+      // 监听全屏状态变化
+      const onFullscreenChange = () => {
+        let container = document.getElementById("ID_videowall_container");
+        let btns = container?.querySelectorAll(".video-btns");
+
+        if (!container || !btns) return;
+
+        if (document.fullscreenElement === container) {
+          // container 正在全屏 → 隐藏按钮
+          btns.forEach((btn) => {
+            btn.style.display = "none";
+          });
+        } else {
+          // 不是全屏 或 其他元素全屏 → 显示按钮
+          btns.forEach((btn) => {
+            btn.style.display = "flex"; // 恢复默认 display
+          });
+        }
+      };
+      document.addEventListener("fullscreenchange", onFullscreenChange);
+
+      window.clearnTimer = function () {
+        document.removeEventListener("fullscreenchange", onFullscreenChange);
+      };
+
+      function fullscreen(elem) {
+        if (!elem) {
+          console.error("元素未找到");
+          return;
         }
 
-        // 绑定按钮事件
-        document
-          .getElementById("ID_single")
-          .addEventListener("click", () => setLayout(1));
-        document
-          .getElementById("ID_quad")
-          .addEventListener("click", () => setLayout(4));
-        // document
-        //   .getElementById("ID_nine")
-        //   .addEventListener("click", () => setLayout(9));
-        document
-          .getElementById("ID_fullscreen")
-          .addEventListener("click", () =>
-            fullscreen(document.getElementById("ID_videowall_container"))
-          );
+        if (!document.fullscreenElement) {
+          // 进入全屏
+          elem.requestFullscreen().catch((err) => {
+            console.error("全屏失败:", err);
+          });
+        } else {
+          // 退出全屏
+          document.exitFullscreen();
+        }
+      }
 
-        // 默认布局
-        setLayout(4);
-      });
-    </script>
-  </body>
+      // 绑定按钮事件
+      document
+        .getElementById("ID_single")
+        .addEventListener("click", () => setLayout(1));
+      document
+        .getElementById("ID_quad")
+        .addEventListener("click", () => setLayout(4));
+      document
+        .getElementById("ID_nine")
+        .addEventListener("click", () => setLayout(9));
+      document
+        .getElementById("ID_fullscreen")
+        .addEventListener("click", () =>
+          fullscreen(document.getElementById("ID_videowall_container"))
+        );
+
+      // 默认布局
+      setLayout(4);
+    });
+  </script>
+</body>
+
 </html>

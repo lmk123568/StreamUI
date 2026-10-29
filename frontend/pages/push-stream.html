@@ -395,26 +395,27 @@
               playerElement = document.getElementById("ID_player");
               statusElement = document.getElementById("ID_status");
 
-              let hasfMP4 = Array.isArray(data.schemas)
-                ? data.schemas.some((item) => item.schema === "fmp4")
-                : false;
-
-              if (!hasfMP4) {
-                if (statusElement) {
-                  statusElement.textContent = "请在设置中开启 HTTP-fMP4 分发";
-                  statusElement.style.display = "flex";
-                }
-              } else {
-                playerElement.src = `http://${window.location.hostname}:8080/${data.app}/${data.stream}.live.mp4`;
-                playerElement.load();
-
-                playerElement.play().catch((e) => {
-                  console.error("播放失败:", e);
-                  if (statusElement) {
-                    statusElement.textContent = "播放失败，请检查流是否存在";
-                    statusElement.style.display = "flex";
-                  }
+              if (typeof WhepPlayer === "function") {
+                const player = new WhepPlayer(playerElement, {
+                  onStatus: function (state, text) {
+                    if (!statusElement) return;
+                    if (state === "playing") {
+                      statusElement.style.display = "none";
+                    } else {
+                      statusElement.textContent = text || "";
+                      statusElement.style.display = "flex";
+                    }
+                  },
                 });
+
+                player.start(data.app, data.stream);
+
+                playerElement.__streamui_cleanup__ = function () {
+                  player.stop();
+                };
+              } else if (statusElement) {
+                statusElement.textContent = "WebRTC 播放器未加载";
+                statusElement.style.display = "flex";
               }
 
               let schemaConfig = {
@@ -577,6 +578,10 @@
 
             end: function () {
               if (playerElement) {
+                if (typeof playerElement.__streamui_cleanup__ === "function") {
+                  playerElement.__streamui_cleanup__();
+                  playerElement.__streamui_cleanup__ = null;
+                }
                 playerElement.pause();
                 playerElement.src = ""; // 先清空，中断旧连接
                 playerElement.load();

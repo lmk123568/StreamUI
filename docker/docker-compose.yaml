@@ -34,6 +34,7 @@ services:
       - "10000:10000"
       - "10000:10000/udp"
       - "8000:8000/udp"
+      - "8000:8000/tcp"
       - "9000:9000/udp"
     volumes:
       - /opt/media/bin/www/record:/opt/media/bin/www/record
