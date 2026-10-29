@@ -694,6 +694,12 @@
                       title: "视频片段数",
                       align: "center",
                       width: 150,
+                      templet: function (d) {
+                        if (Number(d.slice_num) === 1) {
+                          return `<span style="color:#ff5722;font-weight:600;">未生成片段</span>`;
+                        }
+                        return `<div>${d.slice_num ?? "-"}</div>`;
+                      },
                     },
                     {
                       field: "total_storage_gb",
@@ -796,8 +802,11 @@
           });
         } else if (layEvent === "del") {
           // 删除确认
+          const recordingTip = objData.isRecordingMP4
+            ? `<div style="margin-top: 8px; color: #ff5722;">⚠️ 该流正在录制中：删除不会停止录制，当前正在写入的片段会丢失，后续片段仍会继续生成。</div>`
+            : "";
           layer.confirm(
-            `确定要删除录像<span style = "margin-bottom: 6px; padding: 4px; background: #f7f7f7; border-radius: 4px;">${objData.app}/${objData.stream}</span>吗？`,
+            `确定要删除录像<span style = "margin-bottom: 6px; padding: 4px; background: #f7f7f7; border-radius: 4px;">${objData.app}/${objData.stream}</span>吗？${recordingTip}`,
             { title: "提示" },
             function (index) {
               $.ajax({
